@@ -1,0 +1,171 @@
+## System Specification: Nexus-Core
+### System Overview & Core Objective
+Nexus-Core is an autonomous Site Reliability Engineering (SRE) and infrastructure orchestration framework. The system converges specialized AI agents into a stateful, cyclic execution graph that continuously observes system logs, synthesizes context from large multi-file directories via Agentic Retrieval-Augmented Generation (RAG), and executes deterministic software repairs inside isolated sandbox environments.
+
+[System Event Log Stream / User Intervention Trigger]
+                                │
+                                ▼
+                       ┌─────────────────┐
+                       │ FastAPI Backend │
+                       └────────┬────────┘
+                                │
+         ┌──────────────────────┴──────────────────────┐
+         ▼                                             ▼
+┌─────────────────┐                           ┌─────────────────┐
+│  LangGraph SRE  │ ◄──[State Updates]───────►│ Next.js Web UI  │
+│  Orchestration  │                           │   Dashboard     │
+└────────┬────────┘                           └─────────────────┘
+         │
+         ├─► [Knowledge Node]  ──► Pinecone Vector Index DB
+         ├─► [Analysis Node]   ──► PyOD Isolation Forest Engine
+         ├─► [Execution Node]  ──► Docker SDK Ephemeral Sandbox
+         └─► [Guardrail Node]  ──► LLM Pre-Execution Security Filter
+
+## System Architecture & Technology Stack
+The platform is designed to operate completely within production-grade free tiers using asynchronous, non-blocking pipelines.Architectural LayerCore Technology Selection Metric
+API Backend FastAPI (Python 3.10+)High-performance async event loops, native Pydantic data validation.Orchestration BrainLangGraphState management for multi-agent cyclic loops and edge routing.Inference ModelsGemini 1.5 FlashFree cloud tier via Google AI Studio,     1M token context window.Vector DBPinecone (Serverless)Fast semantic lookup with automated indexing metadata support.Virtualization SandboxDocker Python SDKTotal process, storage, and networking resource isolation.Anomaly AnalyticsPyOD (Isolation Forest)Robust, unsupervised outlier evaluation for continuous data streams.Web InterfaceNext.js 14+ / Tailwind CSSComponent modularity, real-time event streaming interfaces.
+
+## Core Database Schemas & State Profiles
+### 1. LangGraph Orchestrator State Profile
+The central memory tracking object passed through the execution graph must strictly conform to the following schema structure:
+
+Python
+from typing import TypedDict, List, Dict, Any
+from typing_extensions import Annotated
+import operator
+
+class AgentState(TypedDict):
+    messages: Annotated[List[Dict[str, str]], operator.add]
+    current_target_file: str
+    discovered_logs: List[str]
+    proposed_patch: str
+    execution_exit_code: int
+    execution_stderr: str
+    security_clearance: bool
+    retry_count: int
+    telemetry_metrics: Dict[str, Any]
+### 2. Relational Analytics Ledger (Supabase / PostgreSQL)
+SQL
+CREATE TABLE operational_logs 
+(
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    event_source VARCHAR(255) NOT NULL,
+    agent_action VARCHAR(255),
+    execution_payload TEXT,
+    execution_status VARCHAR(50),
+    token_consumption INT DEFAULT 0,
+    compute_latency_ms INT DEFAULT 0,
+    ragas_fidelity_score NUMERIC(4,3)
+);
+## Phase-Wise Implementation Directive
+To maximize velocity, you must implement the platform in strict sequential blocks: complete the core execution capabilities in Phase 1 and Phase 2 before initiating the advanced layers in Phase 3 and Phase 4.
+### Phase 1: The Context Synthesis Foundation (The Core Brain)
+Implement an asynchronous ingestion pipeline capable of parsing multi-language codebase structural text.Algorithmic Chunking Strategy: Do not utilize static window splitters. Implement code-aware parsing via RecursiveCharacterTextSplitter.from_language to preserve class and function syntax structures intact.Vector Construction & Vector Search: Project codebase structural tokens into high-dimensional space. Calculate structural proximity using Cosine Similarity:$$\text{Similarity}(A, B) = \frac{A \cdot B}{\|A\| \|B\|}$$The Baseline Retrieval Loop: Expose a FastAPI endpoint (POST /api/v1/context/query) that accepts a raw input prompt, converts it into an embedding via the Google AI Studio wrapper, executes a similarity search against Pinecone, constructs a contextual prompt window, and streams the inference directly back to the collector.
+### Phase 2: Autonomous Edge Routing & Sandboxed Operations (The Core Hands)
+Construct the cyclic graph behavior where the AI changes its execution path based on software verification outcomes.LangGraph Execution Nodes: Define an environment containing an Evaluation Node, a Context Retrieval Node, a Code Modification Node, and an Execution Verification Node.Docker SDK Sandboxing Component: Build an isolated operations tool using the Docker Python SDK. All code tests must occur inside a completely network-isolated ubuntu:latest or python:3.10-slim container using strict resource limits:Python
+
+# Resource Isolation Reference Block
+container = docker_client.containers.run(
+    image="python:3.10-slim",
+    command=f"python -c '{target_code}'",
+    mem_limit="128m",
+    nano_cpus=500000000, # Max 0.5 CPU cores
+    network_mode="none",
+    detach=False,
+    remove=True
+)
+Self-Correction Cycles: The routing logic must process structural exit codes. If the container execution fails (Exit Code $\neq 0$), compile the stderr string into the AgentState object, increment the retry index counter, and route the execution path directly back to the Modification Node.
+## Phase 3: Advanced Portfolio Integration (Layered Additions)
+Execute this phase only when all endpoints from Phase 1 and Phase 2 resolve flawlessly.
+### 1. Proactive Anomaly Isolation Module
+Build an independent, background system-telemetry script using the PyOD framework.Mathematical Concept: Deploy an unsupervised Isolation Forest model to continuously calculate anomaly indices $s(x, n)$ across streaming metrics (CPU load, network throughput, log error frequency):$$s(x, n) = 2^{-\frac{E(h(x))}{c(n)}}$$System Action: When the computed anomaly indicator falls within the specified contamination threshold scale, bypass user initiation hooks entirely and programmatically execute an instance of the LangGraph execution graph via an asynchronous internal FastAPI event trigger.
+### 2. The Defensive Security CoreThe Command Validation Layer:
+All generation outputs intended for terminal execution must pass through an absolute blocklist regex validation algorithm checking for escape strings, unapproved modifications, or credential retrieval attempts.Dual-Model Arbitration: Introduce a secondary model verification stage. Route the raw agent execution query to a lightweight instance (e.g., Llama 3 8B) running a zero-temperature security assessment prompt. If the second model returns a negative verification, intercept the execution loop, force the state security permission to False, and route directly to a hard termination node.
+## Phase 4: Verification, Evaluation, and Dashboards
+### 1. Empirical Ragas Verification Suite
+Do not evaluate system success via manual checking loops. Build a detached automated execution script utilizing Ragas to calculate system performance metrics across test data splits:Faithfulness Engine: Measures whether generated patches rely strictly on the codebase snippets extracted via vector query.Context Recall Analytics: Verifies whether the ingestion pipeline pulled all relevant source files required to resolve a target system error.
+### 2. Observable Flow Next.js UI
+Build a terminal interface dashboard featuring:An active, streaming execution log window parsing raw backend system metrics directly via Server-Sent Events (SSE).A real-time state visualization node detailing current resource utilization, active node tracking, and token expenditure counts per execution run.
+
+## Architectural Code Template (FastAPI & LangGraph Lifecycle Initializer)Python# backend/app/core/graph.py
+import os
+from fastapi import FastAPI
+from langgraph.graph import StateGraph, END
+from app.core.schemas import AgentState
+
+def create_sre_orchestrator() -> StateGraph:
+    workflow = StateGraph(AgentState)
+    
+    # Core Operation Node Mappings
+    workflow.add_node("context_retrieval", async_context_node)
+    workflow.add_node("code_modification", async_modification_node)
+    workflow.add_node("sandbox_verification", async_sandbox_node)
+    workflow.add_node("security_arbitrator", async_security_node)
+    
+    # Execution Lifecycle Routing Rules
+    workflow.set_entry_point("context_retrieval")
+    workflow.add_edge("context_retrieval", "security_arbitrator")
+    
+    def route_execution(state: AgentState) -> str:
+        if not state["security_clearance"]:
+            return END
+        if state["execution_exit_code"] == 0:
+            return END
+        if state["retry_count"] >= 3:
+            return END
+        return "code_modification"
+        
+    workflow.add_conditional_edges(
+        "sandbox_verification",
+        route_execution,
+        {
+            END: END,
+            "code_modification": "code_modification"
+        }
+    )
+    
+    workflow.add_edge("code_modification", "sandbox_verification")
+    return workflow.compile()
+## Operational Validation Checklist
+Ensure that your final software design fulfills these strict operating assumptions:Isolated Execution: The main host runtime environment must never execute code blocks compiled by the AI components outside the Docker runtime wrapper.Asynchronous Architecture: All model calls, file reads, and database updates must utilize non-blocking async loops.Cost and Latency Limits: Total active generation depth per individual issue run must terminate gracefully upon crossing the threshold constraints.
+
+Example usage: 
+The Final Capability (What the project actually does at the end):
+At the end of the project , you will hit "Run" on your project.
+
+You will artificially crash a dummy web server on your computer.
+
+You will take your hands off the keyboard.
+
+Your screen will show the Anomaly model detecting the crash.
+
+It will wake up the LangGraph Agent.
+
+The Agent will search your codebase using RAG to understand how the server works.
+
+The Agent will write a patch, test it in Docker, verify it works, and deploy the fix.
+
+You will have built an AI that acts as a 24/7 DevOps Engineer.
+
+1. Why Anomaly Detection? (Reactive vs. Proactive)
+If you only build a system that handles user queries, you have built a Chatbot. It is reactive. The system breaks, the user notices, the user asks the bot, and the bot fixes it.
+
+Anomaly Detection makes the system Proactive.
+
+The Role: The Isolation Forest (Anomaly Detection) acts as the system s "heart rate monitor." It constantly watches the server logs in the background.
+
+The Magic: If the CPU spikes to 99% at 2:00 AM, the user is asleep. The Anomaly Detection model notices the spike and automatically triggers the AI Agent. The Agent reads the logs, finds the infinite loop in the code, and restarts the server—all before the user wakes up.
+
+Interview Answer: "Without anomaly detection, the AI is blind until a human talks to it. With it, I built a truly Autonomous Self-Healing System."
+
+2. Why Do We Need Docker? (Safety & Sandboxing)
+You are giving an AI the ability to execute terminal commands (the "Hands"). LLMs hallucinate.
+
+If the AI decides the best way to fix a disk space error is to run rm -rf / (delete everything) directly on your laptop, it will destroy your operating system.
+
+The Role: Docker acts as a Sandbox.
+
+The Magic: Every time the AI wants to run a command (like pip install or running a python script to test a fix), your backend spins up a temporary, isolated Docker container. The AI runs its commands inside that container. If the AI breaks it, who cares? You just delete the container, and your actual computer remains 100% safe.
+
+Interview Answer: "I used Docker SDK to sandbox the AI's execution environment. Giving an LLM direct root access to a host machine is a massive security vulnerability. Docker ensures the AI can test its code fixes in a zero-risk, ephemeral environment."

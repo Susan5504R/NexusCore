@@ -1,0 +1,43 @@
+# ─── Web framework / server ───────────────────────────────────────────────
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.1
+sse-starlette==2.2.1
+python-dotenv==1.0.1
+httpx==0.28.1
+
+# ─── LLM / RAG stack ──────────────────────────────────────────────────────
+langchain==0.3.14
+langchain-community==0.3.14
+langchain-google-genai==2.0.8
+langchain-text-splitters==0.3.5
+langchain-pinecone==0.2.8
+google-generativeai==0.8.3
+pinecone>=6.0.0,<7.0.0
+
+# ─── Ingestion helpers ────────────────────────────────────────────────────
+pathspec==0.12.1
+
+# ─── Sandbox ──────────────────────────────────────────────────────────────
+docker==7.1.0
+
+# ─── Orchestration graph ──────────────────────────────────────────────────
+langgraph==0.2.62
+
+# ─── Anomaly detection (Phase 3) ──────────────────────────────────────────
+pyod==2.0.3
+numpy==1.26.4
+scikit-learn==1.6.0
+psutil==6.1.1
+
+# ─── Operational ledger (Phase 0.4) ───────────────────────────────────────
+supabase==2.11.0
+asyncpg==0.30.0
+
+# ─── Secondary security model (Phase 3.4) ─────────────────────────────────
+langchain-groq==0.2.3
+
+# ─── Evaluation suite (Phase 4) ───────────────────────────────────────────
+ragas==0.2.10
+datasets==3.2.0
