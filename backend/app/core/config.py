@@ -36,9 +36,9 @@ class Settings(BaseSettings):
     )
 
     # ── Model selection ───────────────────────────────────────────────────
-    gemini_chat_model: str = "gemini-1.5-flash"
-    gemini_embedding_model: str = "models/text-embedding-004"
-    embedding_dimension: int = 768
+    gemini_chat_model: str = "gemini-3.5-flash"
+    gemini_embedding_model: str = "models/gemini-embedding-001"
+    embedding_dimension: int = 3072
     security_model: str = "llama-3.1-8b-instant"  # Groq, zero-temperature
 
     # ── Pinecone index (auto-created on startup if absent) ────────────────
