@@ -7,9 +7,11 @@ append their routers to this list (ingest, context, graph).
 
 from fastapi import APIRouter
 
-from app.api.v1 import health, ingest, context
+from app.api.v1 import health, ingest, context, graph, anomaly
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(health.router)
 api_router.include_router(ingest.router)
 api_router.include_router(context.router)
+api_router.include_router(graph.router, prefix="/graph")
+api_router.include_router(anomaly.router, prefix="/anomaly")

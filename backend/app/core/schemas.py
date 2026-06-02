@@ -78,6 +78,14 @@ class HealthResponse(BaseModel):
     )
 
 
+# ───────────────────────────── API: anomaly webhook ──────────────────────────
+class AnomalyPayload(BaseModel):
+    alert_id: str = Field(..., description="Unique ID from the external alerting system.")
+    service_name: str = Field(..., description="Name of the affected service/container.")
+    target_file: str = Field(..., description="The source code file suspected of causing the anomaly.")
+    logs: List[str] = Field(..., description="The crash logs or stack trace that triggered the alert.")
+
+
 # ───────────────────────────── API: ingestion ────────────────────────────────
 class IngestRequest(BaseModel):
     directory_path: str = Field(..., description="Absolute path to the codebase to ingest.")

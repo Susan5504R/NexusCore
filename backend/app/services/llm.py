@@ -15,3 +15,15 @@ def get_chat_model() -> ChatGoogleGenerativeAI:
         google_api_key=settings.gemini_api_key,
         temperature=0.0
     )
+
+def get_security_model() -> ChatGoogleGenerativeAI:
+    """
+    Returns the LLM responsible for arbitration and guardrails.
+    Uses the same deterministic model for simplicity.
+    """
+    settings = get_settings()
+    return ChatGoogleGenerativeAI(
+        model=settings.gemini_chat_model,
+        google_api_key=settings.gemini_api_key,
+        temperature=0.0
+    )

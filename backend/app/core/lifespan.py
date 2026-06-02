@@ -17,6 +17,7 @@ from pinecone import Pinecone
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.services.ledger import create_ledger
+from app.anomaly.telemetry import telemetry_loop
 
 logger = get_logger()
 
@@ -41,12 +42,23 @@ async def lifespan(app: FastAPI):
 
     # ── Filled by later phases ──────────────────────────────────────────────
     # Phase 2.1 sets app.state.docker_client.
-    app.state.docker_client = None
+    import docker
+    try:
+        app.state.docker_client = docker.from_env()
+        logger.info("docker client initialized")
+    except Exception as exc:
+        logger.warning("docker client init failed (is Docker Desktop running?)", extra={"error": str(exc)})
+        app.state.docker_client = None
+
+    import asyncio
+    app.state.telemetry_task = asyncio.create_task(telemetry_loop(app))
 
     logger.info("nexus-core startup complete")
     yield
 
     # ── Shutdown ────────────────────────────────────────────────────────────
+    if getattr(app.state, "telemetry_task", None):
+        app.state.telemetry_task.cancel()
     if getattr(app.state, "ledger", None) is not None:
         await app.state.ledger.close()
     if getattr(app.state, "docker_client", None) is not None:
