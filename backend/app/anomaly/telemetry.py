@@ -2,41 +2,14 @@ import asyncio
 import psutil
 import logging
 import random
+import uuid
 from fastapi import FastAPI
 
 from app.anomaly.detector import AnomalyDetector
-from app.core.schemas import new_agent_state, OperationalLogEntry
-from app.graph.orchestrator import create_sre_orchestrator
+from app.services.graph_runner import execute_repair
 
 logger = logging.getLogger("nexuscore.anomaly.telemetry")
 detector = AnomalyDetector(contamination=0.05)
-
-async def run_healing_cycle(app: FastAPI, orchestrator, state: dict):
-    """
-    Executes the autonomous repair graph triggered by an internal anomaly.
-    """
-    logger.info("🧠 Proactive telemetry-triggered repair cycle started.")
-    try:
-        final_state = await orchestrator.ainvoke(state)
-        
-        # Log to durable operational ledger
-        ledger = getattr(app.state, "ledger", None)
-        if ledger:
-            exit_code = final_state.get("execution_exit_code", -1)
-            status = "success" if exit_code == 0 else "failed"
-            if not final_state.get("security_clearance", False):
-                status = "blocked_security"
-                
-            entry = OperationalLogEntry(
-                event_source="background/telemetry",
-                agent_action="proactive_healing",
-                execution_payload="Automated PyOD Anomaly response",
-                execution_status=status
-            )
-            await ledger.log_event(entry)
-            
-    except Exception as e:
-        logger.error(f"Proactive healing cycle crashed: {e}", exc_info=True)
 
 async def telemetry_loop(app: FastAPI):
     """
@@ -44,9 +17,6 @@ async def telemetry_loop(app: FastAPI):
     When the Isolation Forest flags an anomaly, it fires the repair graph.
     """
     logger.info("Starting background telemetry loop (PyOD IForest)...")
-    
-    # We instantiate a local orchestrator since we are outside the request context
-    orchestrator = create_sre_orchestrator()
     
     # Initial CPU read to prime psutil
     psutil.cpu_percent(interval=None)
@@ -73,14 +43,20 @@ async def telemetry_loop(app: FastAPI):
                 
                 # 4. Trigger self-healing
                 logs = [f"SYSTEM ANOMALY TRIPPED: High resource exhaustion or error rate detected. CPU={cpu_usage}, Mem={mem_usage}, ErrRate={error_rate}"]
+                run_id = str(uuid.uuid4())
                 
-                state = new_agent_state(
-                    current_target_file="system_metrics", 
-                    discovered_logs=logs
-                )
+                logger.info("🧠 Proactive telemetry-triggered repair cycle started.")
                 
                 # Run graph without awaiting so telemetry loop isn't blocked
-                asyncio.create_task(run_healing_cycle(app, orchestrator, state))
+                asyncio.create_task(
+                    execute_repair(
+                        app=app,
+                        target_file="system_metrics",
+                        logs=logs,
+                        run_id=run_id,
+                        event_source="background/telemetry"
+                    )
+                )
                 
                 # Sleep a bit longer after firing to avoid trigger storms
                 await asyncio.sleep(30)

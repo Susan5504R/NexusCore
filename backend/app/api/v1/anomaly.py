@@ -1,8 +1,8 @@
 import logging
 from fastapi import APIRouter, Request, BackgroundTasks
 
-from app.core.schemas import AnomalyPayload, GraphRunRequest
-from app.api.v1.graph import run_graph
+from app.core.schemas import AnomalyPayload
+from app.services.graph_runner import execute_repair
 
 logger = logging.getLogger("nexuscore.api.anomaly")
 router = APIRouter()
@@ -20,14 +20,15 @@ async def trigger_anomaly(
     """
     logger.warning(f"🚨 Received ANOMALY ALERT [{payload.alert_id}] for service '{payload.service_name}'")
     
-    # Map the anomaly payload to our internal Graph run schema
-    graph_request = GraphRunRequest(
-        target_file=payload.target_file,
-        logs=payload.logs
+    # Dispatch the repair process to the background
+    background_tasks.add_task(
+        execute_repair, 
+        app=request.app, 
+        target_file=payload.target_file, 
+        logs=payload.logs, 
+        run_id=payload.alert_id,
+        event_source="api/v1/anomaly/trigger"
     )
-    
-    # Dispatch the run_graph endpoint logic into the background event loop
-    background_tasks.add_task(run_graph, request, graph_request)
     
     return {
         "status": "accepted",

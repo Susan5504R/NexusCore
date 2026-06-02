@@ -32,7 +32,15 @@ async def health(request: Request) -> HealthResponse:
         except Exception:  # noqa: BLE001 - degraded, not fatal
             deps["pinecone"] = "error"
 
-    deps["docker"] = "ok" if getattr(state, "docker_client", None) else "not_configured"
+    docker_client = getattr(state, "docker_client", None)
+    if docker_client is None:
+        deps["docker"] = "not_configured"
+    else:
+        try:
+            docker_client.ping()
+            deps["docker"] = "ok"
+        except Exception:
+            deps["docker"] = "error"
 
     ledger = getattr(state, "ledger", None)
     if ledger is None:

@@ -125,6 +125,32 @@ class GraphRunResponse(BaseModel):
     proposed_patch: str
 
 
+# ───────────────────────────── API: graph run stream ─────────────────────────
+class GraphStreamEvent(BaseModel):
+    event: str = Field(..., description="'node_update', 'complete', or 'error'")
+    run_id: str
+    node: Optional[str] = None
+    state: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+
+    @classmethod
+    def from_delta(cls, run_id: str, node_name: str, delta: dict) -> "GraphStreamEvent":
+        state_payload = {"active_node": node_name}
+        for key in ["retry_count", "execution_exit_code", "security_clearance", "proposed_patch"]:
+            if key in delta:
+                state_payload[key] = delta[key]
+                
+        messages = delta.get("messages", [])
+        if messages:
+            last_msg = messages[-1]
+            if hasattr(last_msg, "content"):
+                state_payload["latest_message"] = last_msg.content
+            elif isinstance(last_msg, dict):
+                state_payload["latest_message"] = last_msg.get("content", "")
+                
+        return cls(event="node_update", run_id=run_id, node=node_name, state=state_payload)
+
+
 # ───────────────────────── Operational ledger record ─────────────────────────
 class OperationalLogEntry(BaseModel):
     """Mirrors the ``operational_logs`` table. ``id`` and ``timestamp`` are

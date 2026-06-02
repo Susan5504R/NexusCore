@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+@theme {
+  --color-base: var(--base);
+  --color-surface: var(--surface);
+  --color-primary: var(--primary);
+  --color-error: var(--error);
+  --color-success: var(--success);
+  --color-text-main: var(--text-main);
+  --color-text-muted: var(--text-muted);
+}
+
+:root {
+  /* Palette 1: Magma / Volcanic (Default) */
+  --base: #0C0C0C;
+  --surface: #481E14;
+  --primary: #9B3922;
+  --error: #F2613F;
+  --success: #A6F5E3;
+  --text-main: #FFFFFF;
+  --text-muted: #D1D5DB;
+}
+
+[data-theme="palette2"] {
+  /* Palette 2: Crimson & Gold */
+  --base: #000000;
+  --surface: #8E1616;
+  --primary: #E8C999;
+  --error: #FF4B4B; /* Fallback vibrant red for critical alerts */
+  --success: #A6F5E3;
+  --text-main: #F8EEDF;
+  --text-muted: rgba(248, 238, 223, 0.6);
+}
+
+body {
+  background-color: var(--base);
+  color: var(--text-main);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  transition: background-color 0.5s ease, color 0.5s ease;
+}
+
+/* Custom Scrollbar for Terminal */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--base);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--surface);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 15px var(--primary);
+  }
+  50% {
+    box-shadow: 0 0 30px var(--primary);
+  }
+}
+
+.glow-active {
+  animation: pulse-glow 2s infinite;
+}
