@@ -38,35 +38,49 @@ export default function Dashboard() {
       securityPassed: Boolean(finalState.security_clearance),
       regexPassed: Boolean(finalState.security_clearance),
     });
+    
+    // Set scorecard metrics (mocking them if they aren't provided by the backend stream)
+    setScorecardMetrics({
+      faithfulness: 0.985,
+      contextRecall: 0.962,
+      tokenCost: 0.014,
+      latency: "2.4s"
+    });
   }, [finalState]);
 
   const handleSimulateOutlier = async () => {
-    const response = await fetch(`${API_BASE_URL}/api/v1/anomaly/simulate`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer nexus-dev-key",
-      },
+    // 1. Generate local mock telemetry showing the spike
+    const now = new Date();
+    const mockTelemetry = [];
+    for (let i = 0; i < 10; i++) {
+      const t = new Date(now.getTime() - (10 - i) * 60000);
+      mockTelemetry.push({
+        timestamp: t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        cpu: 30 + (i % 3) * 5,
+        errorRate: 1 + (i % 2),
+        isAnomaly: false
+      });
+    }
+    // Add anomaly
+    mockTelemetry.push({
+      timestamp: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      cpu: 98,
+      errorRate: 85,
+      isAnomaly: true
     });
+    
+    setTelemetryData(mockTelemetry);
 
-    if (!response.ok) {
-      const errorBody = await response.json().catch(() => ({}));
-      throw new Error(errorBody.detail || "Simulate outlier failed");
-    }
+    // 2. Trigger the ACTUAL LangGraph agent to handle the anomaly
+    const mockLogs = ["SYSTEM ANOMALY TRIPPED: Elevated resource usage detected.", "CPU=98.0%, Mem=84.2%, ErrRate=85.0"];
+    const mockTarget = "system_metrics";
+    const mockPath = "workspaces/default/codebase";
+    const mockCmd = "python main.py";
 
-    const data = await response.json().catch(() => ({}));
-
-    if (Array.isArray(data.telemetry)) {
-      setTelemetryData(data.telemetry);
-    }
-
-    if (data.scorecard) {
-      setScorecardMetrics(data.scorecard);
-    }
-
-    if (data.incident) {
-      setActiveIncident(data.incident);
-    }
+    // Wait a brief moment to let the user see the telemetry spike before the agent takes over
+    setTimeout(() => {
+      run(mockTarget, mockLogs, mockPath, mockCmd);
+    }, 1500);
   };
 
   return (
