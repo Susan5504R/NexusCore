@@ -161,9 +161,11 @@ async def ingest_github(request: Request, payload: GitHubIngestRequest):
         extract_dir = os.path.join(ns_dir, "codebase")
         os.makedirs(ns_dir, exist_ok=True)
         
-        process = subprocess.run(["git", "clone", "--depth", "1", payload.github_url, extract_dir], capture_output=True, text=True)
+        env = os.environ.copy()
+        env["GIT_TERMINAL_PROMPT"] = "0"
+        process = subprocess.run(["git", "clone", "--depth", "1", payload.github_url, extract_dir], capture_output=True, text=True, env=env)
         if process.returncode != 0:
-            raise ValueError(f"Git clone failed: {process.stderr}")
+            raise ValueError(f"Git clone failed. If the repo is private, include your PAT in the URL (e.g. https://<token>@github.com/...). Error: {process.stderr}")
             
         chunks = await ingest_directory(extract_dir)
         if not chunks:
