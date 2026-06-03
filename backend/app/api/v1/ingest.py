@@ -1,15 +1,16 @@
 import time
 import logging
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, Depends
 
 from app.core.schemas import IngestRequest, IngestResponse, OperationalLogEntry
 from app.services.ingestion import ingest_directory
 from app.services.vectorstore import get_vectorstore_service
+from app.security.auth import verify_api_key
 
 logger = logging.getLogger("nexuscore.api.ingest")
 router = APIRouter()
 
-@router.post("/ingest", response_model=IngestResponse)
+@router.post("/ingest", response_model=IngestResponse, dependencies=[Depends(verify_api_key)])
 async def ingest_codebase(request: Request, payload: IngestRequest):
     """
     Ingests a local directory, splitting the code into language-aware chunks
@@ -63,3 +64,16 @@ async def ingest_codebase(request: Request, payload: IngestRequest):
         await ledger.log_event(entry)
         
     return response_data
+
+@router.get("/ingest/files", dependencies=[Depends(verify_api_key)])
+async def list_ingested_files(namespace: str = None):
+    """
+    Returns a list of unique file paths currently ingested in the given namespace.
+    """
+    try:
+        vectorstore_service = get_vectorstore_service()
+        files = await vectorstore_service.aget_unique_files(namespace=namespace)
+        return {"files": files}
+    except Exception as e:
+        logger.error("Failed to list ingested files", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))

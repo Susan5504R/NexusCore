@@ -75,6 +75,10 @@ class Settings(BaseSettings):
     # ── Mock/Demo Mode (allows testing without API keys / quotas) ────────
     use_mock_llm: bool = False
 
+    # ── Security & Auth (Phase 5.5) ───────────────────────────────────────
+    nexus_api_key: str = "nexus-dev-key"
+    nexus_webhook_secret: str = "nexus-dev-secret"
+
     @field_validator("gemini_api_key", "pinecone_api_key")
     @classmethod
     def _reject_blank(cls, value: str, info) -> str:

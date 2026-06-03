@@ -33,6 +33,8 @@ class AgentState(TypedDict):
     messages: Annotated[List[Dict[str, str]], operator.add]
     current_target_file: str
     discovered_logs: List[str]
+    project_path: str
+    reproduction_command: str
     proposed_patch: str
     execution_exit_code: int
     execution_stderr: str
@@ -50,6 +52,8 @@ def new_agent_state(
     current_target_file: str = "",
     discovered_logs: Optional[List[str]] = None,
     messages: Optional[List[Dict[str, str]]] = None,
+    project_path: str = "",
+    reproduction_command: str = "",
 ) -> AgentState:
     """Build a fully-initialized ``AgentState`` with safe defaults.
 
@@ -64,6 +68,8 @@ def new_agent_state(
         messages=messages or [],
         current_target_file=current_target_file,
         discovered_logs=discovered_logs or [],
+        project_path=project_path,
+        reproduction_command=reproduction_command,
         proposed_patch="",
         execution_exit_code=-1,
         execution_stderr="",
@@ -120,6 +126,8 @@ class GraphRunRequest(BaseModel):
     logs: List[str] = Field(
         default_factory=list, description="Error/log lines that triggered this run."
     )
+    project_path: str = Field(..., description="Absolute path to the user's project directory.")
+    reproduction_command: str = Field(..., description="Command to reproduce the error (e.g., 'python main.py').")
 
 
 class GraphRunResponse(BaseModel):

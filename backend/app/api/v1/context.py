@@ -1,12 +1,13 @@
 import json
 import logging
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, Depends
 from sse_starlette.sse import EventSourceResponse
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.core.schemas import ContextQueryRequest, OperationalLogEntry
 from app.services.vectorstore import get_vectorstore_service
 from app.services.llm import get_chat_model
+from app.security.auth import verify_api_key
 
 logger = logging.getLogger("nexuscore.api.context")
 router = APIRouter()
@@ -16,7 +17,7 @@ Use the provided codebase context to answer the user's prompt accurately.
 If the context doesn't contain the answer, state that you cannot find the answer in the codebase.
 """
 
-@router.post("/context/query")
+@router.post("/context/query", dependencies=[Depends(verify_api_key)])
 async def context_query(request: Request, payload: ContextQueryRequest):
     """
     RAG inference loop:

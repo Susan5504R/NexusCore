@@ -5,6 +5,8 @@ import { useGraphStream } from "../hooks/useGraphStream";
 import { NodeStatusPanel } from "../components/NodeStatusPanel";
 import { TerminalLog } from "../components/TerminalLog";
 import { StatusBanner } from "../components/StatusBanner";
+import { IngestPanel } from "../components/IngestPanel";
+import { RunForm } from "../components/RunForm";
 
 export default function Dashboard() {
   const [theme, setTheme] = useState("palette1");
@@ -19,8 +21,8 @@ export default function Dashboard() {
     setTheme((prev) => (prev === "palette1" ? "palette2" : "palette1"));
   };
 
-  const handleTrigger = () => {
-    run("server.py", ["FATAL CRASH: ZeroDivisionError in process_metrics()"]);
+  const handleRun = (targetFile: string, logsArray: string[], projectPath: string, reproCommand: string) => {
+    run(targetFile, logsArray, projectPath, reproCommand);
   };
 
   return (
@@ -42,26 +44,21 @@ export default function Dashboard() {
             >
               Swap to {theme === "palette1" ? "Palette 2" : "Palette 1"}
             </button>
-            <button 
-              onClick={handleTrigger}
-              disabled={isRunning}
-              className={`px-6 py-2 rounded-lg font-semibold transition-all duration-300 ${
-                isRunning 
-                ? "bg-surface text-text-muted cursor-not-allowed" 
-                : "bg-primary text-base hover:opacity-90 hover:scale-105 shadow-[0_0_15px_var(--primary)]"
-              }`}
-            >
-              {isRunning ? "Cycle Active..." : "Trigger Anomaly"}
-            </button>
           </div>
         </div>
 
+        {/* Configuration Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <IngestPanel />
+          <RunForm onRun={handleRun} isRunning={isRunning} />
+        </div>
+
+        {/* Execution & Status Row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-1 space-y-6">
             <NodeStatusPanel activeNode={activeNode} />
             <StatusBanner status={status} />
           </div>
-
           <TerminalLog logs={logs} />
         </div>
 

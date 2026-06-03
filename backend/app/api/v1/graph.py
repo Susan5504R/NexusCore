@@ -1,16 +1,17 @@
 import uuid
 import time
 import logging
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request, HTTPException, Depends
 from sse_starlette.sse import EventSourceResponse
 
 from app.core.schemas import GraphRunRequest, GraphRunResponse, GraphStreamEvent, new_agent_state
 from app.services.graph_runner import execute_repair, record_ledger_entry, sre_orchestrator
+from app.security.auth import verify_api_key
 
 logger = logging.getLogger("nexuscore.api.graph")
 router = APIRouter()
 
-@router.post("/run", response_model=GraphRunResponse)
+@router.post("/run", response_model=GraphRunResponse, dependencies=[Depends(verify_api_key)])
 async def run_graph(request: Request, payload: GraphRunRequest):
     """
     Triggers a full execution of the autonomous SRE repair LangGraph.
@@ -23,7 +24,9 @@ async def run_graph(request: Request, payload: GraphRunRequest):
             target_file=payload.target_file,
             logs=payload.logs,
             run_id=run_id,
-            event_source="api/v1/graph/run"
+            event_source="api/v1/graph/run",
+            project_path=payload.project_path,
+            reproduction_command=payload.reproduction_command,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -37,7 +40,7 @@ async def run_graph(request: Request, payload: GraphRunRequest):
     )
 
 
-@router.post("/run/stream")
+@router.post("/run/stream", dependencies=[Depends(verify_api_key)])
 async def stream_graph(request: Request, payload: GraphRunRequest):
     """
     Triggers the autonomous SRE LangGraph and yields an SSE stream of node updates.
@@ -47,7 +50,9 @@ async def stream_graph(request: Request, payload: GraphRunRequest):
     
     initial_state = new_agent_state(
         current_target_file=payload.target_file,
-        discovered_logs=payload.logs
+        discovered_logs=payload.logs,
+        project_path=payload.project_path,
+        reproduction_command=payload.reproduction_command,
     )
     
     async def event_generator():

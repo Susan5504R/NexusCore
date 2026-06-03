@@ -9,12 +9,12 @@ logger = logging.getLogger("nexuscore.nodes.modification")
 
 class PatchProposal(BaseModel):
     reasoning: str = Field(description="Explanation of what caused the bug and how the patch fixes it.")
-    python_code: str = Field(description="The complete, standalone, runnable Python script to fix the issue. It MUST run successfully in isolation without syntax errors.")
+    python_code: str = Field(description="The complete, updated content of the target file. It MUST be the full file content, not just a diff or snippet.")
 
 async def modification_node(state: AgentState) -> dict:
     """
     Code generation node.
-    Reviews the context and previous errors to generate a patch.
+    Reviews the context and previous errors to generate a full-file patch.
     """
     logger.info("--- CODE MODIFICATION NODE ---")
     
@@ -23,7 +23,7 @@ async def modification_node(state: AgentState) -> dict:
     # so we can read usage_metadata.total_tokens for real per-call token accounting.
     structured_llm = chat_model.with_structured_output(PatchProposal, include_raw=True)
     
-    sys_content = "You are an autonomous Python SRE agent. Your goal is to write a standalone Python script that fixes the server error based on the context. Only provide valid, runnable Python code in the python_code field."
+    sys_content = "You are an autonomous Python SRE agent. Your goal is to review the crash logs and the provided codebase context, and rewrite the COMPLETE target file with a fix. Return the FULL updated file content in the python_code field. DO NOT return a standalone snippet or diffs, return the entire modified file so it can be overwritten safely."
     
     user_messages = []
     for msg in state.get("messages", []):

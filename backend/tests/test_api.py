@@ -10,8 +10,13 @@ def test_health_endpoint(client):
 
 
 def test_graph_run_endpoint(client):
-    payload = {"target_file": "test.py", "logs": ["FATAL ERROR"]}
-    response = client.post("/api/v1/graph/run", json=payload)
+    payload = {
+        "target_file": "test.py", 
+        "logs": ["FATAL ERROR"],
+        "project_path": "/fake/path",
+        "reproduction_command": "python fake.py"
+    }
+    response = client.post("/api/v1/graph/run", json=payload, headers={"Authorization": "Bearer nexus-dev-key"})
     assert response.status_code == 200
     data = response.json()
 
@@ -23,8 +28,13 @@ def test_graph_run_endpoint(client):
 
 
 def test_graph_run_stream_endpoint(client):
-    payload = {"target_file": "test.py", "logs": ["FATAL ERROR"]}
-    response = client.post("/api/v1/graph/run/stream", json=payload)
+    payload = {
+        "target_file": "test.py", 
+        "logs": ["FATAL ERROR"],
+        "project_path": "/fake/path",
+        "reproduction_command": "python fake.py"
+    }
+    response = client.post("/api/v1/graph/run/stream", json=payload, headers={"Authorization": "Bearer nexus-dev-key"})
 
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/event-stream")
@@ -37,13 +47,25 @@ def test_graph_run_stream_endpoint(client):
 
 
 def test_anomaly_trigger(client):
+    import hmac
+    import hashlib
+    import json
+    
     payload = {
         "alert_id": "TEST-123",
         "service_name": "payment-api",
         "target_file": "payments.py",
         "logs": ["Timeout connecting to DB"],
     }
-    response = client.post("/api/v1/anomaly/trigger", json=payload)
+    
+    body = json.dumps(payload).encode('utf-8')
+    signature = hmac.new(b"nexus-dev-secret", msg=body, digestmod=hashlib.sha256).hexdigest()
+    
+    response = client.post(
+        "/api/v1/anomaly/trigger", 
+        content=body, 
+        headers={"X-Nexus-Signature": signature, "Content-Type": "application/json"}
+    )
 
     assert response.status_code == 200
     data = response.json()

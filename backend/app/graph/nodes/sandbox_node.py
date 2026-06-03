@@ -21,12 +21,33 @@ async def sandbox_node(state: AgentState) -> dict:
         }
         
     # Execute the code inside the ephemeral Docker container
-    exit_code, stdout, stderr = await execute_in_sandbox(patch_code)
+    exit_code, stdout, stderr = await execute_in_sandbox(
+        patch_code,
+        project_path=state.get("project_path", ""),
+        reproduction_command=state.get("reproduction_command", ""),
+        target_file=state.get("current_target_file", "")
+    )
     
     logger.info(f"Sandbox completed. Exit code: {exit_code}")
     if stderr:
         logger.warning(f"Sandbox Stderr: {stderr.strip()}")
         
+    # Phase 5.4: Deploy the verified fix back to the actual project
+    if exit_code == 0:
+        project_path = state.get("project_path", "")
+        target_file = state.get("current_target_file", "")
+        if project_path and target_file:
+            import os
+            rel_target = os.path.relpath(target_file, project_path) if os.path.isabs(target_file) else target_file
+            original_target = os.path.join(project_path, rel_target)
+            try:
+                os.makedirs(os.path.dirname(original_target), exist_ok=True)
+                with open(original_target, 'w', encoding='utf-8') as f:
+                    f.write(patch_code)
+                logger.info(f"Fix verified! Patch successfully deployed to {original_target}")
+            except Exception as e:
+                logger.error(f"Failed to deploy verified patch: {e}")
+                
     current_retries = state.get("retry_count", 0)
     
     return {

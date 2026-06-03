@@ -10,7 +10,7 @@ export function useGraphStream() {
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "running" | "success" | "blocked" | "failed">("idle");
 
-  const run = useCallback(async (targetFile: string, initialLogs: string[]) => {
+  const run = useCallback(async (targetFile: string, initialLogs: string[], projectPath: string, reproCommand: string) => {
     setIsRunning(true);
     setActiveNode(null);
     setLogs(["[SYSTEM] Initializing autonomous repair cycle..."]);
@@ -19,7 +19,7 @@ export function useGraphStream() {
     setStatus("running");
 
     try {
-      for await (const event of streamGraphRun(targetFile, initialLogs)) {
+      for await (const event of streamGraphRun(targetFile, initialLogs, projectPath, reproCommand)) {
         if (event.event === "node_update" && event.state) {
           setActiveNode(event.state.active_node || null);
           if (event.state.latest_message) {

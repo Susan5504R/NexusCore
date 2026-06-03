@@ -260,7 +260,7 @@ driven by the language already detected at ingestion time.
 - **Phase 2** Autonomous Edge Routing & Sandbox — 4 sub-phases ✅
 - **Phase 3** Advanced Portfolio Integration — 4 sub-phases ✅
 - **Phase 4** Verification, Evaluation & Dashboards — 4 sub-phases ✅
-- **Phase 5** Bring Your Own Code (BYOC) — 5 sub-phases ◀ current
+- **Phase 5** Bring Your Own Code (BYOC) — 5 sub-phases ----> done
 - **Phase 6** Post-Deployment Extensions — 3 sub-phases (deferred)
 
 Phases 0–4 are built; Phase 5 turns the demo into a tool that fixes the user's own Python

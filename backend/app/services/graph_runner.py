@@ -39,19 +39,29 @@ async def record_ledger_entry(app, target_file: str, final_state: AgentState, el
         logger.error(f"Failed to record to ledger: {ledger_err}")
 
 
-async def execute_repair(app, target_file: str, logs: List[str], run_id: str, event_source: str = "api/v1/graph/run") -> AgentState:
+async def execute_repair(
+    app,
+    target_file: str,
+    logs: list[str],
+    run_id: str,
+    event_source: str = "api/v1/graph/run",
+    project_path: str = "",
+    reproduction_command: str = ""
+) -> AgentState:
     """
-    Executes the SRE graph entirely and writes to the ledger.
-    Provides a unified invocation path for both REST endpoints and background triggers.
+    Executes the SRE orchestrator LangGraph.
     """
     start_time = time.perf_counter()
-    initial_state = new_agent_state(
-        current_target_file=target_file,
-        discovered_logs=logs
-    )
     
     logger.info(f"Starting Graph Run {run_id} for target file: {target_file}")
     
+    # 1. Initialize State
+    initial_state = new_agent_state(
+        current_target_file=target_file,
+        discovered_logs=logs,
+        project_path=project_path,
+        reproduction_command=reproduction_command,
+    )
     try:
         final_state = await sre_orchestrator.ainvoke(initial_state)
     except Exception as e:

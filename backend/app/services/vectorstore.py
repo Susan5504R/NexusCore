@@ -70,6 +70,16 @@ class VectorStoreService:
         results = await self.vectorstore.asimilarity_search(query, k=top_k, namespace=namespace)
         return results
 
+    async def aget_unique_files(self, namespace: str = None) -> List[str]:
+        """Hack to retrieve unique file paths from the vectorstore for the UI picker."""
+        # Query with a dummy space to pull a large sample of chunks and extract paths
+        results = await self.vectorstore.asimilarity_search(" ", k=1000, namespace=namespace)
+        paths = set()
+        for doc in results:
+            if "path" in doc.metadata:
+                paths.add(doc.metadata["path"])
+        return sorted(list(paths))
+
 
 # Process-wide singleton
 _vectorstore_service = None

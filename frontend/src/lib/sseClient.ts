@@ -18,14 +18,20 @@ function parseEvent(lines: string[]): GraphStreamEvent | null {
   return null;
 }
 
-export async function* streamGraphRun(targetFile: string, logs: string[]): AsyncGenerator<GraphStreamEvent, void, unknown> {
+export async function* streamGraphRun(targetFile: string, logs: string[], projectPath: string, reproCommand: string): AsyncGenerator<GraphStreamEvent, void, unknown> {
   const response = await fetch(`${API_BASE_URL}/api/v1/graph/run/stream`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "Accept": "text/event-stream"
+      "Accept": "text/event-stream",
+      "Authorization": "Bearer nexus-dev-key"
     },
-    body: JSON.stringify({ target_file: targetFile, logs })
+    body: JSON.stringify({ 
+      target_file: targetFile, 
+      logs,
+      project_path: projectPath,
+      reproduction_command: reproCommand
+    })
   });
 
   if (!response.ok) {

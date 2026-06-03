@@ -1,13 +1,14 @@
 import logging
-from fastapi import APIRouter, Request, BackgroundTasks
+from fastapi import APIRouter, Request, BackgroundTasks, Depends
 
 from app.core.schemas import AnomalyPayload
 from app.services.graph_runner import execute_repair
+from app.security.auth import verify_webhook_signature
 
 logger = logging.getLogger("nexuscore.api.anomaly")
 router = APIRouter()
 
-@router.post("/trigger")
+@router.post("/trigger", dependencies=[Depends(verify_webhook_signature)])
 async def trigger_anomaly(
     request: Request,
     payload: AnomalyPayload,
