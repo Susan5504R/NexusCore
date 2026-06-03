@@ -247,7 +247,7 @@ Browser file/zip upload → unpack to a temp dir → ingest → cleanup.
 ### 6.2 Git-URL intake
 Paste a Git URL → clone → ingest → run real repro. Adds clone/auth/secret handling.
 
-### 6.3 Multi-language, real project
+### 6.3 Multi-language, real project [x]
 Generalize the patcher + sandbox beyond Python: per-language build/install/run strategies,
 driven by the language already detected at ingestion time.
 

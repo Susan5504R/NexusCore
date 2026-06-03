@@ -9,7 +9,8 @@ logger = logging.getLogger("nexuscore.nodes.modification")
 
 class PatchProposal(BaseModel):
     reasoning: str = Field(description="Explanation of what caused the bug and how the patch fixes it.")
-    python_code: str = Field(description="The complete, updated content of the target file. It MUST be the full file content, not just a diff or snippet.")
+    target_file: str = Field(description="The exact relative path of the file you are modifying. If the user provided AUTO_DETECT or a blank target, you MUST deduce the correct filename from the retrieved codebase context.")
+    code: str = Field(description="The complete, updated content of the target file. It MUST be the full file content, not just a diff or snippet.")
 
 async def modification_node(state: AgentState) -> dict:
     """
@@ -19,11 +20,9 @@ async def modification_node(state: AgentState) -> dict:
     logger.info("--- CODE MODIFICATION NODE ---")
     
     chat_model = get_chat_model()
-    # include_raw=True preserves the AIMessage alongside the parsed Pydantic object
-    # so we can read usage_metadata.total_tokens for real per-call token accounting.
     structured_llm = chat_model.with_structured_output(PatchProposal, include_raw=True)
     
-    sys_content = "You are an autonomous Python SRE agent. Your goal is to review the crash logs and the provided codebase context, and rewrite the COMPLETE target file with a fix. Return the FULL updated file content in the python_code field. DO NOT return a standalone snippet or diffs, return the entire modified file so it can be overwritten safely."
+    sys_content = "You are an autonomous polyglot SRE agent. Your goal is to review the crash logs and the provided codebase context, and rewrite the COMPLETE target file with a fix. Determine the programming language from the file extension. Return the FULL updated file content in the 'code' field and the exact relative path in 'target_file'. DO NOT return a standalone snippet or diffs, return the entire modified file so it can be overwritten safely."
     
     user_messages = []
     for msg in state.get("messages", []):
@@ -74,6 +73,7 @@ if __name__ == "__main__":
         }
         return {
             "proposed_patch": mock_patch,
+            "current_target_file": "buggy_server.py",
             "messages": [assistant_message],
             "token_consumption": 0,
         }
@@ -95,11 +95,12 @@ if __name__ == "__main__":
 
         assistant_message = {
             "role": "assistant",
-            "content": f"Proposed Fix: {response.reasoning}\n\nCode:\n{response.python_code}"
+            "content": f"Proposed Fix for {response.target_file}: {response.reasoning}\n\nCode:\n{response.code}"
         }
 
         return {
-            "proposed_patch": response.python_code,
+            "proposed_patch": response.code,
+            "current_target_file": response.target_file,
             "messages": [assistant_message],
             "token_consumption": tokens_used,
         }

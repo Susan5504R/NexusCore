@@ -11,6 +11,21 @@ from app.core.config import get_settings
 
 logger = logging.getLogger("nexuscore.sandbox")
 
+def _get_language_env(target_file: str) -> dict:
+    """Detect language from file extension and return the appropriate execution environment."""
+    ext = os.path.splitext(target_file)[1].lower() if target_file else ".py"
+    
+    mapping = {
+        ".js": {"ext": ".js", "cmd": "node {file}", "image": "node:18-slim"},
+        ".ts": {"ext": ".ts", "cmd": "npx ts-node {file}", "image": "node:18-slim"},
+        ".cpp": {"ext": ".cpp", "cmd": "g++ -o app {file} && ./app", "image": "gcc:latest"},
+        ".c": {"ext": ".c", "cmd": "gcc -o app {file} && ./app", "image": "gcc:latest"},
+        ".go": {"ext": ".go", "cmd": "go run {file}", "image": "golang:1.20-alpine"},
+        ".py": {"ext": ".py", "cmd": "python {file}", "image": "python:3.10-slim"},
+    }
+    
+    return mapping.get(ext, mapping[".py"])
+
 
 # ── Subprocess-based sandbox (works everywhere, no Docker needed) ─────────
 
@@ -66,10 +81,12 @@ def _run_subprocess_sandbox(
             cwd = temp_dir
         else:
             # Standalone script mode
-            script_path = os.path.join(temp_dir, "script.py")
+            env = _get_language_env(target_file)
+            filename = f"script{env['ext']}"
+            script_path = os.path.join(temp_dir, filename)
             with open(script_path, "w", encoding="utf-8") as f:
                 f.write(code)
-            repro_cmd = f"{sys.executable} script.py"
+            repro_cmd = env["cmd"].format(file=filename)
             cwd = temp_dir
 
         logger.info(f"Subprocess sandbox: running '{repro_cmd}' in {cwd}")
@@ -156,20 +173,35 @@ def _run_docker_sandbox(
 
             mounts = {temp_dir: {"bind": "/app/workspace", "mode": "rw"}}
             working_dir = "/app/workspace"
-            repro_cmd = reproduction_command or "python main.py"
-            container_cmd = [
-                "/bin/sh", "-c",
-                f"if [ -f requirements.txt ]; then pip install --disable-pip-version-check -r requirements.txt || true; fi; {repro_cmd}"
-            ]
+            
+            lang_env = _get_language_env(target_file)
+            image_to_use = lang_env["image"]
+            
+            repro_cmd = reproduction_command or lang_env["cmd"].format(file=target_file)
+            
+            # Setup container command with optional dependency installation based on language
+            setup_cmd = ""
+            if lang_env["ext"] == ".py":
+                setup_cmd = "if [ -f requirements.txt ]; then pip install --disable-pip-version-check -r requirements.txt || true; fi;"
+            elif lang_env["ext"] in [".js", ".ts"]:
+                setup_cmd = "if [ -f package.json ]; then npm install || true; fi;"
+                
+            container_cmd = ["/bin/sh", "-c", f"{setup_cmd} {repro_cmd}"]
         else:
-            temp_path = os.path.join(temp_dir, "script.py")
+            lang_env = _get_language_env(target_file)
+            image_to_use = lang_env["image"]
+            filename = f"script{lang_env['ext']}"
+            temp_path = os.path.join(temp_dir, filename)
+            
             with open(temp_path, "w", encoding="utf-8") as f:
                 f.write(code)
-            mounts = {temp_path: {"bind": "/app/script.py", "mode": "ro"}}
-            container_cmd = ["python", "/app/script.py"]
+                
+            mounts = {temp_path: {"bind": f"/app/{filename}", "mode": "ro"}}
+            run_cmd = lang_env["cmd"].format(file=f"/app/{filename}")
+            container_cmd = ["/bin/sh", "-c", run_cmd]
 
         container = client.containers.run(
-            image=settings.sandbox_image,
+            image=image_to_use,
             command=container_cmd,
             volumes=mounts,
             working_dir=working_dir,
