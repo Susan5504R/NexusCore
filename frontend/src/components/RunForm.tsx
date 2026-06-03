@@ -125,7 +125,7 @@ export function RunForm({ onRun, isRunning, systemMode, onSystemModeChange, onSi
             </div>
             <div>
               <div className="flex justify-between items-center mb-1">
-                <label className="block text-[10px] text-text-muted font-medium">Target File (Optional - Leave blank for Auto-Detect)</label>
+                <label className="block text-xs text-text-muted font-medium">Target File (Optional - Auto-Detect)</label>
                 <button
                   type="button"
                   onClick={fetchFiles}
