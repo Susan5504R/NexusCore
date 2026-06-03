@@ -1,6 +1,6 @@
 import logging
 from pydantic import BaseModel, Field
-from langchain_core.messages import SystemMessage
+from langchain_core.messages import SystemMessage, HumanMessage
 from app.core.schemas import AgentState
 from app.services.llm import get_security_model
 from app.security.blocklist import check_blocklist
@@ -40,8 +40,9 @@ async def arbitration_node(state: AgentState) -> dict:
     # include_raw=True preserves the AIMessage so we can extract usage_metadata.total_tokens.
     security_model = get_security_model().with_structured_output(SecurityDecision, include_raw=True)
     
+    system_instruction = "You are a strict DevSecOps AI. Analyze Python scripts for destructive operations."
     prompt = f"""
-    You are a strict DevSecOps AI. Analyze the following Python script.
+    Analyze the following Python script.
     If the script contains destructive operations (e.g., os.system('rm -rf'), malicious subprocess calls, unauthorized network exfiltration), mark it as UNSAFE (is_safe=False).
     If it is a standard application logic fix, mark it as SAFE (is_safe=True).
     
@@ -52,7 +53,10 @@ async def arbitration_node(state: AgentState) -> dict:
     """
     
     try:
-        result = await security_model.ainvoke([SystemMessage(content=prompt)])
+        result = await security_model.ainvoke([
+            SystemMessage(content=system_instruction),
+            HumanMessage(content=prompt)
+        ])
         decision: SecurityDecision = result["parsed"]
         raw_message = result.get("raw")
 
