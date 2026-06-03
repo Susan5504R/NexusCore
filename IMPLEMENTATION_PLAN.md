@@ -193,13 +193,75 @@ detection → autonomous trigger → RAG → patch → Docker test → verified 
 
 ---
 
+## Phase 5 — Bring Your Own Code (BYOC)
+
+> Closes the gap between "impressive demo" and "fixes *my* project." Phases 0–4 proved the
+> autonomous loop on a single hardcoded file (`buggy_server.py`). Phase 5 makes the system
+> operate on a user's real Python project, end to end, through the UI. Intake starts with the
+> simplest option (local path); upload and Git-URL intake, plus multi-language fixing, are
+> deferred to Phase 6 (post-deployment).
+
+**Design decisions (locked):**
+- Intake order: **local path first**, then upload, then Git URL (Phase 6).
+- Fix scope: **Python-first but project-faithful** now; multi-language later (Phase 6).
+- Nothing in Phase 5 is exposed without auth (5.5) — it executes user-supplied code.
+
+### 5.1 Ingest UI + wired local-path intake
+Frontend "Ingest Project" panel (directory path + optional namespace) calling the existing
+`POST /api/v1/ingest`, showing files processed / chunks indexed. Confirm the endpoint returns
+`IngestResponse` cleanly and threads `namespace` through to Pinecone. *Unblocks using your own
+code at all — the smallest, highest-leverage step.*
+
+### 5.2 Run form — target file + logs + repro command (replaces the hardcoded button)
+Replace `handleTrigger`'s fixed payload with a real form: pick the target file (from the
+ingested set), paste the crash logs, and supply the **reproduction command** (e.g.
+`python server.py`). Add a small backend endpoint to list ingested files per namespace for the
+picker. The repro command is what makes 5.3 faithful.
+
+### 5.3 Project-faithful Python sandbox
+Stop running synthetic standalone snippets. Mount the user's project into the container,
+install dependencies (`requirements.txt` if present), and run the **actual repro command** to
+reproduce the real failure — capturing real exit code + stderr. Extend `AgentState` / the run
+request to carry the project path and repro command. Keep the hard resource + network limits.
+
+### 5.4 Whole-file patching + apply + re-verify + rollback
+Modification node reads the **real target file** and proposes a corrected version (diff against
+real content, not a from-scratch script). A new apply/verify node writes the patch into a
+working copy, re-runs the repro in the sandbox, and keeps the change only if it passes;
+otherwise rolls back. This finally makes "deploy the fix" true.
+
+### 5.5 Auth & safety hardening
+API-key/JWT auth on all endpoints, HMAC signature verification on the anomaly webhook, and
+basic rate limiting — required before any of the above is exposed, since the system executes
+user-supplied code.
+
+---
+
+## Phase 6 — Post-Deployment Extensions (deferred)
+
+Built only after Phase 5 ships and is stable.
+
+### 6.1 Upload intake
+Browser file/zip upload → unpack to a temp dir → ingest → cleanup.
+
+### 6.2 Git-URL intake
+Paste a Git URL → clone → ingest → run real repro. Adds clone/auth/secret handling.
+
+### 6.3 Multi-language, real project
+Generalize the patcher + sandbox beyond Python: per-language build/install/run strategies,
+driven by the language already detected at ingestion time.
+
+---
+
 ## Plan Summary
 
-- **Phase 0** Scaffolding & Foundations — 4 sub-phases
-- **Phase 1** Context Synthesis Foundation — 4 sub-phases
-- **Phase 2** Autonomous Edge Routing & Sandbox — 4 sub-phases
-- **Phase 3** Advanced Portfolio Integration — 4 sub-phases
-- **Phase 4** Verification, Evaluation & Dashboards — 4 sub-phases
+- **Phase 0** Scaffolding & Foundations — 4 sub-phases ✅
+- **Phase 1** Context Synthesis Foundation — 4 sub-phases ✅
+- **Phase 2** Autonomous Edge Routing & Sandbox — 4 sub-phases ✅
+- **Phase 3** Advanced Portfolio Integration — 4 sub-phases ✅
+- **Phase 4** Verification, Evaluation & Dashboards — 4 sub-phases ✅
+- **Phase 5** Bring Your Own Code (BYOC) — 5 sub-phases ◀ current
+- **Phase 6** Post-Deployment Extensions — 3 sub-phases (deferred)
 
-**Total: 5 phases, 20 sub-phases.** Sequential per the directive: Phases 1 & 2 must resolve
-flawlessly before Phases 3 & 4.
+Phases 0–4 are built; Phase 5 turns the demo into a tool that fixes the user's own Python
+projects. Phase 6 broadens intake and language coverage after deployment.

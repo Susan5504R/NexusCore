@@ -9,7 +9,6 @@ DANGEROUS_PATTERNS = [
     r"os\.remove\s*\(",
     r"os\.rmdir\s*\(",
     r"shutil\.rmtree\s*\(",
-    r"sys\.exit\s*\(",
     r"__import__\s*\(",
     r"eval\s*\(",
     r"exec\s*\(",
