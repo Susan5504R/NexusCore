@@ -22,22 +22,23 @@ type CustomizedProps = {
 
 const renderAnomalyBands = (props: CustomizedProps) => {
   const xAxis = props.xAxisMap ? props.xAxisMap[Object.keys(props.xAxisMap)[0]] : null;
-  if (!xAxis || !props.offset || !props.data) return null;
+  const { offset, data } = props;
+  if (!xAxis || !offset || !data) return null;
 
-  return props.data.map((point) => {
+  return data.map((point) => {
     if (!point.isAnomaly) return null;
     const xValue = xAxis.scale(point.timestamp);
     if (Number.isNaN(xValue)) return null;
     const bandWidth = xAxis.bandwidth ? Math.max(8, xAxis.bandwidth()) : 10;
-    const x = props.offset.left + xValue - bandWidth / 2;
+    const x = offset.left + xValue - bandWidth / 2;
 
     return (
       <rect
         key={`anomaly-${point.timestamp}`}
         x={x}
-        y={props.offset.top}
+        y={offset.top}
         width={bandWidth}
-        height={props.offset.height}
+        height={offset.height}
         fill="rgba(239, 68, 68, 0.2)"
       />
     );
