@@ -16,7 +16,6 @@ export function RunForm({ onRun, isRunning, systemMode, onSystemModeChange, onSi
   const [namespace, setNamespace] = useState("");
   const [files, setFiles] = useState<string[]>([]);
   const [targetFile, setTargetFile] = useState("");
-  const [projectPath, setProjectPath] = useState(".");
   const [reproCommand, setReproCommand] = useState("");
   const [logs, setLogs] = useState("");
   const [loadingFiles, setLoadingFiles] = useState(false);
@@ -57,10 +56,13 @@ export function RunForm({ onRun, isRunning, systemMode, onSystemModeChange, onSi
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!targetFile || !projectPath || !reproCommand || !logs) return;
+    if (!targetFile || !reproCommand || !logs) return;
     
     const logsArray = logs.split("\n").filter(l => l.trim() !== "");
-    onRun(targetFile, logsArray, projectPath, reproCommand);
+    const safeNamespace = namespace.trim() || "default";
+    const resolvedProjectPath = `workspaces/${safeNamespace}/codebase`;
+    
+    onRun(targetFile, logsArray, resolvedProjectPath, reproCommand);
   };
 
   const handleSimulate = async () => {

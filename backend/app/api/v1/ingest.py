@@ -92,66 +92,94 @@ async def list_ingested_files(request: Request, namespace: str = None):
         logger.error("Failed to list ingested files", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
+WORKSPACE_BASE = os.path.join(os.getcwd(), "workspaces")
+
+def get_workspace_dir(namespace: str | None) -> str:
+    ns = namespace or "default"
+    ns = "".join(c for c in ns if c.isalnum() or c in ("-", "_"))
+    return os.path.join(WORKSPACE_BASE, ns)
+
 @router.post("/ingest/upload", response_model=IngestResponse, dependencies=[Depends(verify_api_key)])
 @limiter.limit("2/minute")
 async def ingest_upload(request: Request, file: UploadFile = File(...), namespace: str = Form(None)):
-    """Ingests a ZIP file containing codebase."""
+    """Ingests a ZIP file containing codebase and saves it to a persistent workspace."""
     start_time = time.perf_counter()
-    temp_dir = tempfile.mkdtemp(prefix="nexus_ingest_zip_")
+    ns_dir = get_workspace_dir(namespace)
+    
     try:
-        zip_path = os.path.join(temp_dir, "upload.zip")
+        if os.path.exists(ns_dir):
+            def remove_readonly(func, path, _):
+                os.chmod(path, stat.S_IWRITE)
+                func(path)
+            shutil.rmtree(ns_dir, onerror=remove_readonly)
+        os.makedirs(ns_dir, exist_ok=True)
+
+        zip_path = os.path.join(ns_dir, "upload.zip")
         with open(zip_path, "wb") as f:
             shutil.copyfileobj(file.file, f)
-        extract_dir = os.path.join(temp_dir, "extracted")
+        
+        extract_dir = os.path.join(ns_dir, "codebase")
         os.makedirs(extract_dir, exist_ok=True)
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall(extract_dir)
+            
+        os.remove(zip_path) # cleanup zip
+
         chunks = await ingest_directory(extract_dir)
         if not chunks:
             return IngestResponse(files_processed=0, chunks_indexed=0, elapsed_ms=int((time.perf_counter() - start_time) * 1000))
+        
         vectorstore_service = get_vectorstore_service()
         await vectorstore_service.aupsert_documents(chunks, namespace=namespace)
+        
         elapsed_ms = int((time.perf_counter() - start_time) * 1000)
         unique_files = len(set(chunk.metadata.get("path") for chunk in chunks if chunk.metadata.get("path")))
+        
         ledger = getattr(request.app.state, "ledger", None)
         if ledger:
             await ledger.log_event(OperationalLogEntry(event_source="api/v1/ingest/upload", agent_action="ingest_upload", execution_payload=f"filename: {file.filename} | namespace: {namespace}", execution_status="success", compute_latency_ms=elapsed_ms))
+        
         return IngestResponse(files_processed=unique_files, chunks_indexed=len(chunks), elapsed_ms=elapsed_ms)
     except Exception as e:
         logger.error("ZIP ingestion failed", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to ingest zip: {e}")
-    finally:
-        def remove_readonly(func, path, _):
-            os.chmod(path, stat.S_IWRITE)
-            func(path)
-        shutil.rmtree(temp_dir, onerror=remove_readonly)
 
 @router.post("/ingest/github", response_model=IngestResponse, dependencies=[Depends(verify_api_key)])
 @limiter.limit("2/minute")
 async def ingest_github(request: Request, payload: GitHubIngestRequest):
-    """Ingests a GitHub repository."""
+    """Ingests a GitHub repository and saves it to a persistent workspace."""
     start_time = time.perf_counter()
-    temp_dir = tempfile.mkdtemp(prefix="nexus_ingest_git_")
+    ns_dir = get_workspace_dir(payload.namespace)
+    
     try:
-        process = subprocess.run(["git", "clone", "--depth", "1", payload.github_url, temp_dir], capture_output=True, text=True)
+        if os.path.exists(ns_dir):
+            def remove_readonly(func, path, _):
+                os.chmod(path, stat.S_IWRITE)
+                func(path)
+            shutil.rmtree(ns_dir, onerror=remove_readonly)
+        
+        extract_dir = os.path.join(ns_dir, "codebase")
+        os.makedirs(ns_dir, exist_ok=True)
+        
+        process = subprocess.run(["git", "clone", "--depth", "1", payload.github_url, extract_dir], capture_output=True, text=True)
         if process.returncode != 0:
             raise ValueError(f"Git clone failed: {process.stderr}")
-        chunks = await ingest_directory(temp_dir)
+            
+        chunks = await ingest_directory(extract_dir)
         if not chunks:
             return IngestResponse(files_processed=0, chunks_indexed=0, elapsed_ms=int((time.perf_counter() - start_time) * 1000))
+            
         vectorstore_service = get_vectorstore_service()
         await vectorstore_service.aupsert_documents(chunks, namespace=payload.namespace)
+        
         elapsed_ms = int((time.perf_counter() - start_time) * 1000)
         unique_files = len(set(chunk.metadata.get("path") for chunk in chunks if chunk.metadata.get("path")))
+        
         ledger = getattr(request.app.state, "ledger", None)
         if ledger:
             await ledger.log_event(OperationalLogEntry(event_source="api/v1/ingest/github", agent_action="ingest_github", execution_payload=f"url: {payload.github_url} | namespace: {payload.namespace}", execution_status="success", compute_latency_ms=elapsed_ms))
+            
         return IngestResponse(files_processed=unique_files, chunks_indexed=len(chunks), elapsed_ms=elapsed_ms)
     except Exception as e:
         logger.error("GitHub ingestion failed", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to ingest github: {e}")
-    finally:
-        def remove_readonly(func, path, _):
-            os.chmod(path, stat.S_IWRITE)
-            func(path)
-        shutil.rmtree(temp_dir, onerror=remove_readonly)
