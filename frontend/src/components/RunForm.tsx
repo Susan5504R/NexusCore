@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ShieldAlert } from "lucide-react";
+import { ShieldAlert, Info } from "lucide-react";
 import { API_BASE_URL } from "../lib/config";
 
 interface RunFormProps {
@@ -188,29 +188,32 @@ export function RunForm({ onRun, isRunning, systemMode, onSystemModeChange, onSi
         </form>
       ) : (
         <div className="space-y-4">
-          <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-base/60 px-4 py-5">
-            <div className="relative">
-              <div className="absolute inset-0 rounded-full bg-primary/30 blur-xl animate-pulse" />
-              <ShieldAlert className="relative h-8 w-8 text-primary" />
+          <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-base/60 px-4 py-5">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <div className="absolute inset-0 rounded-full bg-primary/30 blur-xl animate-pulse" />
+                <ShieldAlert className="relative h-8 w-8 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm text-text-muted flex items-center gap-2">
+                  Proactive Sentinel
+                </p>
+                <p className="text-lg font-semibold text-text-main">
+                  {simulateStatus === "loading" ? "Simulating..." : "Monitoring active..."}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-sm text-text-muted">Proactive Sentinel</p>
-              <p className="text-lg font-semibold text-text-main">Monitoring active...</p>
-            </div>
+            
+            <button
+              type="button"
+              onClick={handleSimulate}
+              disabled={simulateStatus === "loading"}
+              title="Simulate Outlier"
+              className="p-2 rounded-full text-text-muted hover:text-primary hover:bg-surface transition-colors focus:outline-none"
+            >
+              <Info className="w-5 h-5" />
+            </button>
           </div>
-
-          <button
-            type="button"
-            onClick={handleSimulate}
-            disabled={simulateStatus === "loading"}
-            className={`w-full py-2 rounded-lg font-semibold transition-all duration-300 ${
-              simulateStatus === "loading"
-                ? "bg-surface text-text-muted cursor-not-allowed border border-surface"
-                : "bg-error text-white hover:opacity-90 hover:scale-[1.02] shadow-[0_0_15px_var(--error)]"
-            }`}
-          >
-              {simulateStatus === "loading" ? "Triggering..." : "Simulate Outlier"}
-          </button>
 
           {simulateStatus === "error" && simulateError && (
             <div className="p-3 bg-error/10 border border-error/30 rounded-lg text-sm">
