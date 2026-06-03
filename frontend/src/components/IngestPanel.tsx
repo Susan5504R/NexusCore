@@ -29,7 +29,7 @@ export function IngestPanel() {
     if (status === "loading") {
       interval = setInterval(() => {
         setTipIndex((prev) => (prev + 1) % LOADING_TIPS.length);
-      }, 4000);
+      }, 8000);
     }
     return () => clearInterval(interval);
   }, [status]);

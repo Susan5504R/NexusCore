@@ -14,21 +14,16 @@ import { API_BASE_URL } from "../lib/config";
 import type { IncidentData, ScorecardData, SystemMode, TelemetryPoint } from "../lib/dashboardTypes";
 
 export default function Dashboard() {
-  const [theme, setTheme] = useState("palette1");
   const { run, isRunning, activeNode, logs, status, finalState } = useGraphStream();
   const [systemMode, setSystemMode] = useState<SystemMode>("MANUAL");
   const [telemetryData, setTelemetryData] = useState<TelemetryPoint[]>([]);
   const [scorecardMetrics, setScorecardMetrics] = useState<ScorecardData | null>(null);
   const [activeIncident, setActiveIncident] = useState<IncidentData | null>(null);
 
-  // Apply theme to HTML tag
+  // Apply default theme to HTML tag
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme((prev) => (prev === "palette1" ? "palette2" : "palette1"));
-  };
+    document.documentElement.setAttribute("data-theme", "palette1");
+  }, []);
 
   const handleRun = (targetFile: string, logsArray: string[], projectPath: string, reproCommand: string) => {
     run(targetFile, logsArray, projectPath, reproCommand);
@@ -86,14 +81,6 @@ export default function Dashboard() {
             </h1>
             <p className="text-text-main/90 font-medium mt-1">Autonomous Infrastructure Self-Healing</p>
           </div>
-          <div className="flex gap-4">
-            <button 
-              onClick={toggleTheme}
-              className="px-4 py-2 rounded-lg bg-base border border-surface hover:border-primary transition-all text-text-muted hover:text-text-main"
-            >
-              Swap to {theme === "palette1" ? "Palette 2" : "Palette 1"}
-            </button>
-          </div>
         </div>
 
         {/* Component A */}
@@ -109,14 +96,16 @@ export default function Dashboard() {
 
           {/* Center & Right Column (Span 2) */}
           <div className="lg:col-span-2 space-y-6">
-            <TelemetryChart data={telemetryData} />
-            <RunForm
-              onRun={handleRun}
-              isRunning={isRunning}
-              systemMode={systemMode}
-              onSystemModeChange={setSystemMode}
-              onSimulateOutlier={handleSimulateOutlier}
-            />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <TelemetryChart data={telemetryData} />
+              <RunForm
+                onRun={handleRun}
+                isRunning={isRunning}
+                systemMode={systemMode}
+                onSystemModeChange={setSystemMode}
+                onSimulateOutlier={handleSimulateOutlier}
+              />
+            </div>
             <TerminalLog logs={logs} />
           </div>
         </div>
