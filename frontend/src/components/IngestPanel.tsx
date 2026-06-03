@@ -1,7 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { API_BASE_URL } from "../lib/config";
+import { Loader2 } from "lucide-react";
+
+const LOADING_TIPS = [
+  "NexusCore splits your codebase into semantic chunks to maintain context during repairs.",
+  "Pinecone Vector Database powers the retrieval-augmented generation (RAG) for lightning-fast lookups.",
+  "The Sandbox executes code patches in an isolated environment to verify fixes before deployment.",
+  "Proactive Sentinel mode continuously analyzes telemetry to preemptively fix anomalies.",
+  "Tip: Use namespaces to separate different projects and environments seamlessly.",
+  "Did you know? Advanced LLMs power the security arbitration to prevent malicious patches.",
+  "NexusCore's operational ledger stores all agent actions for compliance and observability."
+];
 
 export function IngestPanel() {
   const [activeTab, setActiveTab] = useState<"github" | "zip">("github");
@@ -11,12 +22,24 @@ export function IngestPanel() {
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [result, setResult] = useState<{ files: number; chunks: number; time: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [tipIndex, setTipIndex] = useState(0);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (status === "loading") {
+      interval = setInterval(() => {
+        setTipIndex((prev) => (prev + 1) % LOADING_TIPS.length);
+      }, 4000);
+    }
+    return () => clearInterval(interval);
+  }, [status]);
 
   const handleIngest = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus("loading");
     setResult(null);
     setError(null);
+    setTipIndex(0);
 
     try {
       let response;
@@ -76,7 +99,6 @@ export function IngestPanel() {
       </div>
       
       <form onSubmit={handleIngest} className="space-y-3">
-
         {activeTab === "github" && (
           <div>
             <label className="block text-xs text-text-muted mb-1 font-medium">GitHub Repository URL</label>
@@ -115,13 +137,22 @@ export function IngestPanel() {
           />
         </div>
 
-        <button
-          type="submit"
-          disabled={status === "loading" || (activeTab === "github" && !githubUrl) || (activeTab === "zip" && !file)}
-          className="w-full bg-surface border border-primary/30 hover:border-primary text-text-main py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/10"
-        >
-          {status === "loading" ? "Ingesting..." : "Run Ingestion"}
-        </button>
+        {status === "loading" ? (
+          <div className="w-full bg-surface border border-primary/30 p-4 rounded-lg flex flex-col items-center justify-center space-y-3 animate-in fade-in duration-300">
+            <Loader2 className="w-6 h-6 text-primary animate-spin" />
+            <p className="text-xs text-text-muted text-center italic transition-opacity duration-500 min-h-[32px]">
+              {LOADING_TIPS[tipIndex]}
+            </p>
+          </div>
+        ) : (
+          <button
+            type="submit"
+            disabled={(activeTab === "github" && !githubUrl) || (activeTab === "zip" && !file)}
+            className="w-full bg-surface border border-primary/30 hover:border-primary text-text-main py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/10"
+          >
+            Run Ingestion
+          </button>
+        )}
       </form>
 
       {status === "success" && result && (
