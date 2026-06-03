@@ -56,13 +56,13 @@ export function RunForm({ onRun, isRunning, systemMode, onSystemModeChange, onSi
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!targetFile || !reproCommand || !logs) return;
+    if (!reproCommand || !logs) return;
     
     const logsArray = logs.split("\n").filter(l => l.trim() !== "");
     const safeNamespace = namespace.trim() || "default";
     const resolvedProjectPath = `workspaces/${safeNamespace}/codebase`;
     
-    onRun(targetFile, logsArray, resolvedProjectPath, reproCommand);
+    onRun(targetFile || "AUTO_DETECT", logsArray, resolvedProjectPath, reproCommand);
   };
 
   const handleSimulate = async () => {
@@ -125,7 +125,7 @@ export function RunForm({ onRun, isRunning, systemMode, onSystemModeChange, onSi
             </div>
             <div>
               <div className="flex justify-between items-center mb-1">
-                <label className="block text-xs text-text-muted font-medium">Target File</label>
+                <label className="block text-[10px] text-text-muted font-medium">Target File (Optional - Leave blank for Auto-Detect)</label>
                 <button
                   type="button"
                   onClick={fetchFiles}
@@ -137,11 +137,10 @@ export function RunForm({ onRun, isRunning, systemMode, onSystemModeChange, onSi
               <select
                 value={targetFile}
                 onChange={(e) => setTargetFile(e.target.value)}
-                required
                 className="w-full bg-base border border-surface rounded-lg px-3 py-2 text-sm text-text-main focus:outline-none focus:border-primary transition-colors"
               >
-                <option value="" disabled>
-                  {loadingFiles ? "Loading files..." : fetchError ? "Error loading files" : files.length === 0 ? "No files ingested" : "Select target file"}
+                <option value="">
+                  {loadingFiles ? "Loading files..." : fetchError ? "Error loading files" : files.length === 0 ? "No files ingested (Auto-Detect)" : "Select target file or leave blank"}
                 </option>
                 {files.map(f => (
                   <option key={f} value={f}>{f}</option>
@@ -176,9 +175,9 @@ export function RunForm({ onRun, isRunning, systemMode, onSystemModeChange, onSi
 
           <button
             type="submit"
-            disabled={isRunning || !targetFile}
+            disabled={isRunning}
             className={`w-full py-2 rounded-lg font-semibold transition-all duration-300 ${
-              isRunning || !targetFile
+              isRunning
               ? "bg-surface text-text-muted cursor-not-allowed border border-surface"
               : "bg-error text-white hover:opacity-90 hover:scale-[1.02] shadow-[0_0_15px_var(--error)]"
             }`}

@@ -80,7 +80,7 @@ export function IngestPanel() {
     <div className="bg-surface p-5 rounded-2xl shadow-lg border border-primary/20 space-y-4">
       <div className="flex items-center gap-2 mb-2">
         <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-        <h2 className="text-lg font-bold text-text-main">Ingest Project</h2>
+        <h2 className="text-lg font-bold text-text-main">Sync Workspace / Connect Repository</h2>
       </div>
 
       <div className="flex gap-2 border-b border-surface pb-2">
