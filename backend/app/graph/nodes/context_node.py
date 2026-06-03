@@ -14,6 +14,36 @@ async def context_node(state: AgentState) -> dict:
     logs = "\n".join(state.get("discovered_logs", []))
     query = f"Error in {state.get('current_target_file')}: {logs}"
     
+    from app.core.config import get_settings
+    if get_settings().use_mock_llm:
+        logger.info("Using mock context retrieval (quota-free mode)")
+        mock_context = """--- File: buggy_server.py ---
+import sys
+import time
+
+def process_metrics():
+    metrics = [10, 20, -5, 40]
+    for m in metrics:
+        if m < 0:
+            val = math.sqrt(abs(m))
+            print(f"Processed absolute metric: {val}")
+        else:
+            print(f"Processed metric: {m}")
+        time.sleep(0.5)
+
+def main():
+    print("Starting NexusCore Demo Server...")
+    try:
+        process_metrics()
+        print("Server running successfully!")
+    except Exception as e:
+        print(f"FATAL CRASH: {type(e).__name__}: {str(e)}", file=sys.stderr)
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()"""
+        return {"messages": [{"role": "system", "content": f"Retrieved Context from Codebase:\n{mock_context}"}]}
+
     try:
         vectorstore = get_vectorstore_service()
         # Fetch top relevant chunks

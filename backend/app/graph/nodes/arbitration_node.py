@@ -28,6 +28,14 @@ async def arbitration_node(state: AgentState) -> dict:
         logger.warning(f"❌ Blocklist triggered: {static_reason}")
         return {"security_clearance": False}
         
+    from app.core.config import get_settings
+    if get_settings().use_mock_llm:
+        logger.info("Using mock security arbitration (quota-free mode) -> PASS")
+        return {
+            "security_clearance": True,
+            "token_consumption": 0,
+        }
+        
     # 2. Heuristic dynamic analysis (LLM Arbitration)
     # include_raw=True preserves the AIMessage so we can extract usage_metadata.total_tokens.
     security_model = get_security_model().with_structured_output(SecurityDecision, include_raw=True)

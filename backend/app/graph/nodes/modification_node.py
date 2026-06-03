@@ -39,6 +39,45 @@ async def modification_node(state: AgentState) -> dict:
         error_msg = f"PREVIOUS ATTEMPT FAILED with stderr:\n{state.get('execution_stderr')}\n\nPlease analyze the error and provide a corrected Python script."
         langchain_messages.append(HumanMessage(content=error_msg))
         
+    from app.core.config import get_settings
+    if get_settings().use_mock_llm:
+        logger.info("Using mock patch generation (quota-free mode)")
+        mock_patch = """import sys
+import time
+import math
+
+def process_metrics():
+    metrics = [10, 20, -5, 40]
+    for m in metrics:
+        if m < 0:
+            val = math.sqrt(abs(m))
+            print(f"Processed absolute metric: {val}")
+        else:
+            print(f"Processed metric: {m}")
+            
+        time.sleep(0.5)
+
+def main():
+    print("Starting NexusCore Demo Server...")
+    try:
+        process_metrics()
+        print("Server running successfully!")
+    except Exception as e:
+        print(f"FATAL CRASH: {type(e).__name__}: {str(e)}", file=sys.stderr)
+        raise SystemExit(1)
+
+if __name__ == "__main__":
+    main()"""
+        assistant_message = {
+            "role": "assistant",
+            "content": "Proposed Fix (MOCKED): Imported math and updated the square root logic inside process_metrics."
+        }
+        return {
+            "proposed_patch": mock_patch,
+            "messages": [assistant_message],
+            "token_consumption": 0,
+        }
+
     try:
         result = await structured_llm.ainvoke(langchain_messages)
         response: PatchProposal = result["parsed"]
