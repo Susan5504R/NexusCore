@@ -1,6 +1,23 @@
 import { GraphStreamEvent } from "./types";
 import { API_BASE_URL } from "./config";
 
+function parseEvent(lines: string[]): GraphStreamEvent | null {
+  let dataStr = "";
+  for (const line of lines) {
+    if (line.startsWith("data:")) {
+      dataStr = line.slice(5).trim();
+    }
+  }
+  if (dataStr) {
+    try {
+      return JSON.parse(dataStr) as GraphStreamEvent;
+    } catch (e) {
+      console.error("Failed to parse SSE data:", dataStr, e);
+    }
+  }
+  return null;
+}
+
 export async function* streamGraphRun(targetFile: string, logs: string[]): AsyncGenerator<GraphStreamEvent, void, unknown> {
   const response = await fetch(`${API_BASE_URL}/api/v1/graph/run/stream`, {
     method: "POST",
@@ -21,36 +38,32 @@ export async function* streamGraphRun(targetFile: string, logs: string[]): Async
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let currentEventLines: string[] = [];
 
   while (true) {
     const { done, value } = await reader.read();
-    if (done) break;
+    if (done) {
+      if (currentEventLines.length > 0) {
+        const event = parseEvent(currentEventLines);
+        if (event) yield event;
+      }
+      break;
+    }
 
     buffer += decoder.decode(value, { stream: true });
-    // SSE frames are separated by a double newline
-    const parts = buffer.split("\n\n");
+    const lines = buffer.split(/\r?\n/);
     // The last chunk might be incomplete, so we leave it in the buffer
-    buffer = parts.pop() || ""; 
+    buffer = lines.pop() || ""; 
 
-    for (const part of parts) {
-      if (!part.trim()) continue;
-      
-      const lines = part.split("\n");
-      let dataStr = "";
-
-      for (const line of lines) {
-        if (line.startsWith("data:")) {
-          dataStr = line.slice(5).trim();
+    for (const line of lines) {
+      if (line.trim() === "") {
+        if (currentEventLines.length > 0) {
+          const event = parseEvent(currentEventLines);
+          if (event) yield event;
+          currentEventLines = [];
         }
-      }
-
-      if (dataStr) {
-        try {
-          const parsedData = JSON.parse(dataStr) as GraphStreamEvent;
-          yield parsedData;
-        } catch (e) {
-          console.error("Failed to parse SSE data:", dataStr);
-        }
+      } else {
+        currentEventLines.push(line);
       }
     }
   }
