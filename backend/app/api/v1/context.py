@@ -56,13 +56,19 @@ async def context_query(request: Request, payload: ContextQueryRequest):
     
     async def event_generator():
         try:
-            # astream yields AIMessageChunks
+            # astream yields AIMessageChunks; usage_metadata is delivered on the
+            # final chunk once the model finishes. We track it as we go.
+            tokens_used = 0
             async for chunk in chat_model.astream(messages):
                 if chunk.content:
                     yield {
                         "event": "message",
                         "data": json.dumps({"text": chunk.content})
                     }
+                # The last chunk carries usage_metadata; earlier ones have it as None.
+                meta = getattr(chunk, "usage_metadata", None)
+                if meta is not None:
+                    tokens_used = int(meta.get("total_tokens", 0))
             
             # Log to operational ledger at the end of the stream
             ledger = getattr(request.app.state, "ledger", None)
@@ -71,7 +77,8 @@ async def context_query(request: Request, payload: ContextQueryRequest):
                     event_source="api/v1/context/query",
                     agent_action="rag_inference",
                     execution_payload=f"prompt: {payload.prompt}",
-                    execution_status="success"
+                    execution_status="success",
+                    token_consumption=tokens_used,
                 )
                 await ledger.log_event(entry)
                 

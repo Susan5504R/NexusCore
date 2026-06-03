@@ -5,6 +5,7 @@ export interface GraphStreamStateDelta {
   security_clearance?: boolean;
   proposed_patch?: string;
   latest_message?: string;
+  token_consumption?: number;
 }
 
 export interface GraphStreamEvent {

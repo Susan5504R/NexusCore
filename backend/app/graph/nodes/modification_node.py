@@ -19,8 +19,9 @@ async def modification_node(state: AgentState) -> dict:
     logger.info("--- CODE MODIFICATION NODE ---")
     
     chat_model = get_chat_model()
-    # Force Gemini to output JSON matching our Pydantic schema
-    structured_llm = chat_model.with_structured_output(PatchProposal)
+    # include_raw=True preserves the AIMessage alongside the parsed Pydantic object
+    # so we can read usage_metadata.total_tokens for real per-call token accounting.
+    structured_llm = chat_model.with_structured_output(PatchProposal, include_raw=True)
     
     sys_content = "You are an autonomous Python SRE agent. Your goal is to write a standalone Python script that fixes the server error based on the context. Only provide valid, runnable Python code in the python_code field."
     
@@ -39,21 +40,33 @@ async def modification_node(state: AgentState) -> dict:
         langchain_messages.append(HumanMessage(content=error_msg))
         
     try:
-        response: PatchProposal = await structured_llm.ainvoke(langchain_messages)
-        logger.info(f"Generated patch. Reasoning: {response.reasoning}")
-        
+        result = await structured_llm.ainvoke(langchain_messages)
+        response: PatchProposal = result["parsed"]
+        raw_message = result.get("raw")
+
+        # Extract real token count from the AIMessage usage_metadata.
+        # usage_metadata is None if the model config doesn't return it; default to 0.
+        tokens_used = 0
+        if raw_message is not None:
+            meta = getattr(raw_message, "usage_metadata", None)
+            if meta is not None:
+                tokens_used = int(meta.get("total_tokens", 0))
+
+        logger.info(f"Generated patch (tokens={tokens_used}). Reasoning: {response.reasoning}")
+
         assistant_message = {
             "role": "assistant",
             "content": f"Proposed Fix: {response.reasoning}\n\nCode:\n{response.python_code}"
         }
-        
+
         return {
             "proposed_patch": response.python_code,
-            "messages": [assistant_message]
+            "messages": [assistant_message],
+            "token_consumption": tokens_used,
         }
     except Exception as e:
         logger.error(f"Modification generation failed: {e}", exc_info=True)
         return {
             "execution_exit_code": -1,
-            "execution_stderr": f"LLM generation failed: {e}"
+            "execution_stderr": f"LLM generation failed: {e}",
         }

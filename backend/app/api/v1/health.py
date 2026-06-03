@@ -3,8 +3,8 @@
 Checks are intentionally cheap so the dashboard can poll this frequently:
 * Gemini   — is an API key configured?
 * Pinecone — was the client built, and can we list indexes?
-* Docker   — wired in Phase 2.1 (reports 'not_configured' until then).
-* Ledger   — wired in Phase 0.4 (reports 'not_configured' until then).
+* Docker   — is the daemon reachable (ping)? 'not_configured' if no client.
+* Ledger   — can we reach Postgres? 'not_configured' if no SUPABASE_DB_URL.
 """
 
 from fastapi import APIRouter, Request

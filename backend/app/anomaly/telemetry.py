@@ -1,11 +1,11 @@
 import asyncio
 import psutil
 import logging
-import random
 import uuid
 from fastapi import FastAPI
 
 from app.anomaly.detector import AnomalyDetector
+from app.anomaly.log_counter import LogErrorCounter
 from app.services.graph_runner import execute_repair
 
 logger = logging.getLogger("nexuscore.anomaly.telemetry")
@@ -15,11 +15,21 @@ async def telemetry_loop(app: FastAPI):
     """
     Background worker that continuously samples system metrics.
     When the Isolation Forest flags an anomaly, it fires the repair graph.
+
+    The three-dimensional telemetry vector is:
+      1. cpu_usage    — psutil physical CPU utilisation (real)
+      2. mem_usage    — psutil virtual memory utilisation (real)
+      3. error_rate   — fraction of ERROR/CRITICAL log records in the last 60 s
+                        (real, derived from the app's own structured logging via
+                        LogErrorCounter rather than simulated with random.uniform)
     """
     logger.info("Starting background telemetry loop (PyOD IForest)...")
     
-    # Initial CPU read to prime psutil
+    # Initial CPU read to prime psutil (first call always returns 0.0)
     psutil.cpu_percent(interval=None)
+    
+    # Grab the singleton counter that was installed by lifespan
+    log_counter = LogErrorCounter.get_instance()
     
     while True:
         try:
@@ -27,22 +37,25 @@ async def telemetry_loop(app: FastAPI):
             cpu_usage = psutil.cpu_percent(interval=None)
             mem_usage = psutil.virtual_memory().percent
             
-            # 2. Simulate error rate (In production, read from a log aggregator)
-            error_rate = random.uniform(0.0, 1.0)
-            
-            # 1% chance to simulate a massive failure spike for demonstration
-            if random.random() < 0.01: 
-                error_rate = 99.9
-                cpu_usage = 100.0
+            # 2. Real application error rate: fraction of ERROR+ records in
+            #    the last 60 seconds.  Returns 0.0 on clean startup (no window
+            #    data yet), which is the correct conservative baseline.
+            error_rate = log_counter.error_rate(window_seconds=60.0)
                 
             # 3. Feed 3D vector into PyOD
             is_anomaly = detector.add_data_point(cpu_usage, mem_usage, error_rate)
             
             if is_anomaly:
-                logger.warning(f"🚨 ANOMALY DETECTED! CPU: {cpu_usage}%, Mem: {mem_usage}%, Err: {error_rate}")
+                logger.warning(
+                    f"🚨 ANOMALY DETECTED! CPU: {cpu_usage}%, "
+                    f"Mem: {mem_usage}%, ErrRate: {error_rate:.3f}"
+                )
                 
                 # 4. Trigger self-healing
-                logs = [f"SYSTEM ANOMALY TRIPPED: High resource exhaustion or error rate detected. CPU={cpu_usage}, Mem={mem_usage}, ErrRate={error_rate}"]
+                logs = [
+                    f"SYSTEM ANOMALY TRIPPED: Elevated resource usage or error rate detected. "
+                    f"CPU={cpu_usage:.1f}%, Mem={mem_usage:.1f}%, ErrRate={error_rate:.3f}"
+                ]
                 run_id = str(uuid.uuid4())
                 
                 logger.info("🧠 Proactive telemetry-triggered repair cycle started.")

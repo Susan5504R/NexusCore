@@ -2,7 +2,7 @@
 
 A single typed Settings object loads and validates every environment variable at
 startup. Required keys (Gemini, Pinecone) fail fast if missing; keys that later
-phases depend on (Supabase, Groq) are optional here and validated only when the
+phases depend on (Supabase) are optional here and validated only when the
 feature that needs them is actually used.
 
 Every service in the project reads its configuration through `get_settings()`,
@@ -31,15 +31,13 @@ class Settings(BaseSettings):
     supabase_db_url: str | None = Field(
         default=None, description="Postgres connection URL for the ledger (Phase 0.4)."
     )
-    groq_api_key: str | None = Field(
-        default=None, description="Groq key for the security arbiter model (Phase 3.4)."
-    )
 
     # ── Model selection ───────────────────────────────────────────────────
+    # The security arbiter (Phase 3.4) runs on the same Gemini model at temperature
+    # 0 for deterministic, zero-creativity safety assessment — see services/llm.py.
     gemini_chat_model: str = "gemini-3.5-flash"
     gemini_embedding_model: str = "models/gemini-embedding-001"
     embedding_dimension: int = 3072
-    security_model: str = "llama-3.1-8b-instant"  # Groq, zero-temperature
 
     # ── Pinecone index (auto-created on startup if absent) ────────────────
     pinecone_index: str = "nexus-core"
@@ -65,6 +63,9 @@ class Settings(BaseSettings):
     # ── Anomaly detection (Phase 3) ───────────────────────────────────────
     anomaly_contamination: float = 0.05
     anomaly_window_size: int = 100
+    # Off by default: when enabled, the background loop samples metrics and can
+    # autonomously fire real graph runs (LLM + Docker). Opt in deliberately.
+    enable_telemetry_loop: bool = False
 
     # ── Server ────────────────────────────────────────────────────────────
     api_host: str = "0.0.0.0"

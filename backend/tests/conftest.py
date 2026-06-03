@@ -1,51 +1,151 @@
-import pytest
-import asyncio
-from unittest.mock import AsyncMock, MagicMock
-from langchain_core.language_models.fake_chat_models import FakeListChatModel
+"""Shared pytest fixtures — make the suite run fully offline.
 
-# Ensure all async tests can run
-@pytest.fixture(scope="session")
-def event_loop():
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
+Every external dependency (Gemini, Pinecone, Docker, the ledger) is mocked, and
+the FastAPI lifespan's client construction is stubbed so ``TestClient`` can boot
+without secrets or network access. Mocks are applied *where each name is imported*
+(node/endpoint modules bind their imports at import time, so patching the source
+module alone would not take effect).
+"""
+
+from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+from langchain_core.documents import Document
+from langchain_core.messages import AIMessage, AIMessageChunk
+
+from app.graph.nodes.modification_node import PatchProposal
+from app.graph.nodes.arbitration_node import SecurityDecision
+
+# A benign, blocklist-clean patch the fake model "generates" for every run.
+SAFE_PATCH = (
+    "import math\n\n\n"
+    "def main():\n"
+    "    print(math.sqrt(16))\n\n\n"
+    'if __name__ == "__main__":\n'
+    "    main()\n"
+)
+
+
+class _StructuredRunner:
+    """Mimics ``model.with_structured_output(Schema, include_raw=...)``.
+
+    When ``include_raw=True`` (the new default for token-accounting), returns
+    ``{"parsed": <schema>, "raw": <AIMessage>}`` — exactly what the nodes now
+    unpack.  When ``include_raw=False`` (legacy / not set), returns the schema
+    directly so any code path that bypasses ``include_raw`` still works.
+    """
+
+    def __init__(self, result, include_raw: bool = False):
+        self._result = result
+        self._include_raw = include_raw
+
+    async def ainvoke(self, *_args, **_kwargs):
+        if self._include_raw:
+            # Build a fake AIMessage that looks like it carries usage_metadata.
+            fake_raw = AIMessage(
+                content="",
+                usage_metadata={"input_tokens": 10, "output_tokens": 15, "total_tokens": 25},
+            )
+            return {"parsed": self._result, "raw": fake_raw, "parsing_error": None}
+        return self._result
+
+
+class FakeChatModel:
+    """Stand-in for ``ChatGoogleGenerativeAI``.
+
+    Supports the only two shapes the code uses: structured output (modification /
+    arbitration nodes) and token streaming (the context endpoint).
+    """
+
+    def __init__(self, structured_result, stream_text: str = "mocked response text"):
+        self._structured_result = structured_result
+        self._stream_text = stream_text
+
+    def with_structured_output(self, _schema, include_raw: bool = False, **_kwargs):
+        return _StructuredRunner(self._structured_result, include_raw=include_raw)
+
+    async def astream(self, *_args, **_kwargs):
+        for token in self._stream_text.split():
+            yield AIMessageChunk(content=token + " ")
+
 
 @pytest.fixture
 def mock_ledger():
     ledger = AsyncMock()
-    ledger.log_event = AsyncMock()
-    ledger.close = AsyncMock()
+    ledger.ping = AsyncMock(return_value=True)
     return ledger
 
+
+@pytest.fixture
+def fake_vectorstore():
+    vectorstore = AsyncMock()
+    vectorstore.asearch = AsyncMock(
+        return_value=[
+            Document(
+                page_content="def process_metrics():\n    return 1",
+                metadata={"path": "demo/buggy_server.py", "language": "python"},
+            )
+        ]
+    )
+    vectorstore.aupsert_documents = AsyncMock()
+    return vectorstore
+
+
 @pytest.fixture(autouse=True)
-def patch_services(monkeypatch, mock_ledger):
-    # Patch get_chat_model to return a Fake model
-    def mock_get_chat_model(*args, **kwargs):
-        return FakeListChatModel(responses=["""```python
-import math
-def main(): pass
-```"""])
-    
-    monkeypatch.setattr("app.core.llm.get_chat_model", mock_get_chat_model)
+def patch_services(monkeypatch, mock_ledger, fake_vectorstore):
+    """Patch every external dependency so nodes, endpoints, and the lifespan run
+    deterministically offline. Autouse so even pure-logic tests stay isolated."""
 
-    # Patch the VectorStoreService
-    mock_vectorstore = AsyncMock()
-    mock_vectorstore.asearch.return_value = [
-        MagicMock(page_content="Mocked source code content.")
-    ]
-    # We patch the class wherever it is used, e.g., in context_node
-    monkeypatch.setattr("app.graph.nodes.context_node.VectorStoreService", lambda namespace: mock_vectorstore)
+    chat_model = FakeChatModel(
+        PatchProposal(reasoning="Add the missing import.", python_code=SAFE_PATCH)
+    )
+    security_model = FakeChatModel(
+        SecurityDecision(is_safe=True, reason="Standard application logic fix.")
+    )
 
-    # Patch the Docker sandbox execution (simulate success)
-    monkeypatch.setattr("app.graph.nodes.sandbox_node.execute_code_in_sandbox", AsyncMock(return_value=(0, "Success\n", "")))
+    # ── LLM bindings (patched where imported) ──────────────────────────────
+    monkeypatch.setattr(
+        "app.graph.nodes.modification_node.get_chat_model", lambda: chat_model
+    )
+    monkeypatch.setattr(
+        "app.graph.nodes.arbitration_node.get_security_model", lambda: security_model
+    )
+    monkeypatch.setattr("app.api.v1.context.get_chat_model", lambda: chat_model)
 
-    # Patch the ledger
-    monkeypatch.setattr("app.services.ledger.create_ledger", AsyncMock(return_value=mock_ledger))
-    
-    # We also patch getattr in graph_runner so it returns our mock ledger instead of needing a real app.state
-    original_getattr = getattr
-    def custom_getattr(obj, name, default=None):
-        if name == "ledger":
-            return mock_ledger
-        return original_getattr(obj, name, default)
-    monkeypatch.setattr("app.services.graph_runner.getattr", custom_getattr)
+    # ── Vectorstore bindings ───────────────────────────────────────────────
+    vs_factory = lambda *args, **kwargs: fake_vectorstore  # noqa: E731
+    monkeypatch.setattr("app.graph.nodes.context_node.get_vectorstore_service", vs_factory)
+    monkeypatch.setattr("app.api.v1.ingest.get_vectorstore_service", vs_factory)
+    monkeypatch.setattr("app.api.v1.context.get_vectorstore_service", vs_factory)
+
+    # ── Sandbox: simulate a clean run ──────────────────────────────────────
+    monkeypatch.setattr(
+        "app.graph.nodes.sandbox_node.execute_in_sandbox",
+        AsyncMock(return_value=(0, "Success\n", "")),
+    )
+
+    # ── Lifespan externals → boot with no network / IO ─────────────────────
+    monkeypatch.setattr("app.core.lifespan.Pinecone", lambda **kwargs: MagicMock())
+    monkeypatch.setattr(
+        "app.core.lifespan.create_ledger", AsyncMock(return_value=mock_ledger)
+    )
+
+    async def _noop_telemetry_loop(_app):
+        return
+
+    monkeypatch.setattr("app.core.lifespan.telemetry_loop", _noop_telemetry_loop)
+    monkeypatch.setattr("docker.from_env", lambda: MagicMock())
+    # LogErrorCounter.install is a no-op in tests — the singleton stays clean.
+    monkeypatch.setattr("app.core.lifespan.LogErrorCounter", MagicMock())
+
+
+@pytest.fixture
+def client(patch_services):
+    """Context-managed TestClient so the (mocked) lifespan runs and populates
+    ``app.state`` before requests are served."""
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    with TestClient(app) as test_client:
+        yield test_client

@@ -19,6 +19,7 @@ async def record_ledger_entry(app, target_file: str, final_state: AgentState, el
     exit_code = final_state.get("execution_exit_code", -1)
     clearance = final_state.get("security_clearance", False)
     retry_count = final_state.get("retry_count", 0)
+    total_tokens = final_state.get("token_consumption", 0)
     
     status = "success" if exit_code == 0 else "failed"
     if not clearance:
@@ -29,6 +30,7 @@ async def record_ledger_entry(app, target_file: str, final_state: AgentState, el
         agent_action="autonomous_repair",
         execution_payload=f"Target: {target_file} | Retries: {retry_count}",
         execution_status=status,
+        token_consumption=total_tokens,
         compute_latency_ms=elapsed_ms
     )
     try:

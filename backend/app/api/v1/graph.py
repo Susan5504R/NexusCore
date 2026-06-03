@@ -81,7 +81,8 @@ async def stream_graph(request: Request, payload: GraphRunRequest):
                     "execution_exit_code": final_state.get("execution_exit_code", -1),
                     "retry_count": final_state.get("retry_count", 0),
                     "security_clearance": final_state.get("security_clearance", False),
-                    "proposed_patch": final_state.get("proposed_patch", "")
+                    "proposed_patch": final_state.get("proposed_patch", ""),
+                    "token_consumption": final_state.get("token_consumption", 0),
                 }
             )
             yield {"event": "complete", "data": complete_event.model_dump_json()}

@@ -10,12 +10,16 @@ def test_anomaly_detector_warmup():
 
 def test_anomaly_detector_detects_spike():
     detector = AnomalyDetector(contamination=0.05)
-    
-    # Warmup with 20 completely normal points
-    for i in range(20):
-        detector.add_data_point(30.0, 40.0, 0.05)
-        
-    # Send a massive spike
+
+    # Warmup with normal traffic that has realistic small variance. (An Isolation
+    # Forest trained on perfectly identical points degenerates and can't score —
+    # real telemetry always jitters, so we model that here.)
+    for i in range(30):
+        cpu = 30.0 + (i % 5)        # 30–34%
+        mem = 40.0 + (i % 3)        # 40–42%
+        err = 0.05 + (i % 4) * 0.01  # 0.05–0.08
+        detector.add_data_point(cpu, mem, err)
+
+    # Send a massive spike well outside the learned envelope.
     is_anomaly = detector.add_data_point(100.0, 99.0, 0.99)
-    # It should detect it as an outlier
     assert is_anomaly

@@ -1,5 +1,7 @@
 import logging
 from typing import Literal
+
+from app.core.config import get_settings
 from app.core.schemas import AgentState
 
 logger = logging.getLogger("nexuscore.routing")
@@ -31,11 +33,12 @@ def route_execution(state: AgentState) -> Literal["modification_node", "__end__"
         return "__end__"
         
     # 3. Retry Limit Check
+    max_retries = get_settings().max_retries
     retries = state.get("retry_count", 0)
-    if retries >= 3:
-        logger.error("❌ Maximum retries (3) reached. Exiting graph to prevent infinite loops.")
+    if retries >= max_retries:
+        logger.error(f"❌ Maximum retries ({max_retries}) reached. Exiting graph to prevent infinite loops.")
         return "__end__"
-        
+
     # 4. Loop back for another try
-    logger.info(f"⚠️ Execution failed (Exit Code: {exit_code}). Routing back to modification_node for retry {retries}/3.")
+    logger.info(f"⚠️ Execution failed (Exit Code: {exit_code}). Routing back to modification_node for retry {retries}/{max_retries}.")
     return "modification_node"

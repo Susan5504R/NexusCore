@@ -39,6 +39,10 @@ class AgentState(TypedDict):
     security_clearance: bool
     retry_count: int
     telemetry_metrics: Dict[str, Any]
+    # Accumulated LLM token spend across all nodes in this run.
+    # Uses operator.add so each node returns a partial count and LangGraph
+    # appends rather than overwrites — same pattern as ``messages``.
+    token_consumption: Annotated[int, operator.add]
 
 
 def new_agent_state(
@@ -66,6 +70,7 @@ def new_agent_state(
         security_clearance=False,
         retry_count=0,
         telemetry_metrics={},
+        token_consumption=0,
     )
 
 

@@ -9,6 +9,6 @@
   },
   {
     "question": "How does the telemetry loop detect anomalies?",
-    "ground_truth": "The telemetry loop continuously samples system metrics (CPU and Memory) using psutil, along with a simulated error rate. It feeds these metrics into a PyOD Isolation Forest machine learning model. If the model detects an outlier, it triggers the autonomous repair graph."
+    "ground_truth": "The telemetry loop continuously samples system metrics (CPU and Memory) using psutil, along with a real application error rate derived from a sliding-window log counter (LogErrorCounter). It feeds these metrics into a PyOD Isolation Forest machine learning model. If the model detects an outlier, it triggers the autonomous repair graph."
   }
 ]

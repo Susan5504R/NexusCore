@@ -7,7 +7,8 @@ logger = logging.getLogger("nexuscore.embeddings")
 def get_embeddings() -> GoogleGenerativeAIEmbeddings:
     """
     Returns the Google Generative AI Embeddings instance based on config.
-    Uses models/text-embedding-004 by default.
+    Defaults to models/gemini-embedding-001 (3072 dims), matching the Pinecone
+    index dimension in settings.
     """
     settings = get_settings()
     

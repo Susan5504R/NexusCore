@@ -25,6 +25,10 @@ docker==7.1.0
 # ─── Orchestration graph ──────────────────────────────────────────────────
 langgraph==0.2.62
 
+# ─── Secondary security model (Phase 3.4) ─────────────────────────────────
+# The arbiter runs on Gemini (langchain-google-genai, above) at temperature 0;
+# no separate provider SDK is required.
+
 # ─── Anomaly detection (Phase 3) ──────────────────────────────────────────
 pyod==2.0.3
 numpy==1.26.4
@@ -34,9 +38,6 @@ psutil==6.1.1
 # ─── Operational ledger (Phase 0.4) ───────────────────────────────────────
 supabase==2.11.0
 asyncpg==0.30.0
-
-# ─── Secondary security model (Phase 3.4) ─────────────────────────────────
-langchain-groq==0.2.3
 
 # ─── Evaluation suite (Phase 4) ───────────────────────────────────────────
 ragas==0.2.10

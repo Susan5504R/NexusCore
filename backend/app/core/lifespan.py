@@ -18,6 +18,7 @@ from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.services.ledger import create_ledger
 from app.anomaly.telemetry import telemetry_loop
+from app.anomaly.log_counter import LogErrorCounter
 
 logger = get_logger()
 
@@ -50,8 +51,21 @@ async def lifespan(app: FastAPI):
         logger.warning("docker client init failed (is Docker Desktop running?)", extra={"error": str(exc)})
         app.state.docker_client = None
 
-    import asyncio
-    app.state.telemetry_task = asyncio.create_task(telemetry_loop(app))
+    # ── Real log-error-rate counter ────────────────────────────────────────
+    # Install the sliding-window handler before any other startup work so that
+    # every subsequent log line is captured for the telemetry error_rate signal.
+    LogErrorCounter.install()
+
+    # ── Proactive anomaly telemetry loop (opt-in) ──────────────────────────
+    # Off by default: when enabled it can autonomously trigger real graph runs
+    # (LLM + Docker) off sampled metrics, so it must be turned on deliberately.
+    app.state.telemetry_task = None
+    if settings.enable_telemetry_loop:
+        import asyncio
+        app.state.telemetry_task = asyncio.create_task(telemetry_loop(app))
+        logger.info("telemetry loop enabled")
+    else:
+        logger.info("telemetry loop disabled (set ENABLE_TELEMETRY_LOOP=true to enable)")
 
     logger.info("nexus-core startup complete")
     yield
