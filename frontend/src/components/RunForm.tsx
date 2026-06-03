@@ -16,7 +16,7 @@ export function RunForm({ onRun, isRunning, systemMode, onSystemModeChange, onSi
   const [namespace, setNamespace] = useState("");
   const [files, setFiles] = useState<string[]>([]);
   const [targetFile, setTargetFile] = useState("");
-  const [projectPath, setProjectPath] = useState("");
+  const [projectPath, setProjectPath] = useState(".");
   const [reproCommand, setReproCommand] = useState("");
   const [logs, setLogs] = useState("");
   const [loadingFiles, setLoadingFiles] = useState(false);
@@ -146,18 +146,6 @@ export function RunForm({ onRun, isRunning, systemMode, onSystemModeChange, onSi
                 ))}
               </select>
             </div>
-          </div>
-
-          <div>
-            <label className="block text-xs text-text-muted mb-1 font-medium">Project Root Path</label>
-            <input
-              type="text"
-              value={projectPath}
-              onChange={(e) => setProjectPath(e.target.value)}
-              placeholder="C:\Users\...\MyProject"
-              required
-              className="w-full bg-base border border-surface rounded-lg px-3 py-2 text-sm text-text-main focus:outline-none focus:border-primary transition-colors placeholder:text-text-muted/50"
-            />
           </div>
 
           <div>

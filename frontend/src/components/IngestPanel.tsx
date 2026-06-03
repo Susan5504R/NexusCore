@@ -4,8 +4,7 @@ import { useState } from "react";
 import { API_BASE_URL } from "../lib/config";
 
 export function IngestPanel() {
-  const [activeTab, setActiveTab] = useState<"github" | "zip" | "local">("github");
-  const [path, setPath] = useState("");
+  const [activeTab, setActiveTab] = useState<"github" | "zip">("github");
   const [githubUrl, setGithubUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [namespace, setNamespace] = useState("");
@@ -21,14 +20,7 @@ export function IngestPanel() {
 
     try {
       let response;
-      if (activeTab === "local") {
-        if (!path.trim()) throw new Error("Path required");
-        response = await fetch(`${API_BASE_URL}/api/v1/ingest`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": "Bearer nexus-dev-key" },
-          body: JSON.stringify({ directory_path: path.trim(), namespace: namespace.trim() || null }),
-        });
-      } else if (activeTab === "github") {
+      if (activeTab === "github") {
         if (!githubUrl.trim()) throw new Error("URL required");
         response = await fetch(`${API_BASE_URL}/api/v1/ingest/github`, {
           method: "POST",
@@ -69,7 +61,7 @@ export function IngestPanel() {
       </div>
 
       <div className="flex gap-2 border-b border-surface pb-2">
-        {(["github", "zip", "local"] as const).map(tab => (
+        {(["github", "zip"] as const).map(tab => (
           <button
             key={tab}
             type="button"
@@ -78,25 +70,12 @@ export function IngestPanel() {
               activeTab === tab ? "bg-primary text-surface" : "text-text-muted hover:text-text-main hover:bg-surface"
             }`}
           >
-            {tab === "github" ? "GitHub URL" : tab === "zip" ? "ZIP Upload" : "Local Path"}
+            {tab === "github" ? "GitHub URL" : "ZIP Upload"}
           </button>
         ))}
       </div>
       
       <form onSubmit={handleIngest} className="space-y-3">
-        {activeTab === "local" && (
-          <div>
-            <label className="block text-xs text-text-muted mb-1 font-medium">Local Directory Path</label>
-            <input
-              type="text"
-              value={path}
-              onChange={(e) => setPath(e.target.value)}
-              placeholder="C:\Users\..."
-              className="w-full bg-base border border-surface rounded-lg px-3 py-2 text-sm text-text-main focus:outline-none focus:border-primary transition-colors placeholder:text-text-muted/50"
-              required={activeTab === "local"}
-            />
-          </div>
-        )}
 
         {activeTab === "github" && (
           <div>
@@ -138,7 +117,7 @@ export function IngestPanel() {
 
         <button
           type="submit"
-          disabled={status === "loading" || (activeTab === "local" && !path) || (activeTab === "github" && !githubUrl) || (activeTab === "zip" && !file)}
+          disabled={status === "loading" || (activeTab === "github" && !githubUrl) || (activeTab === "zip" && !file)}
           className="w-full bg-surface border border-primary/30 hover:border-primary text-text-main py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/10"
         >
           {status === "loading" ? "Ingesting..." : "Run Ingestion"}
