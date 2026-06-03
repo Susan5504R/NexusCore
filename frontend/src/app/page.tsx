@@ -7,10 +7,19 @@ import { TerminalLog } from "../components/TerminalLog";
 import { StatusBanner } from "../components/StatusBanner";
 import { IngestPanel } from "../components/IngestPanel";
 import { RunForm } from "../components/RunForm";
+import { TelemetryChart } from "../components/TelemetryChart";
+import { SreScorecard } from "../components/SreScorecard";
+import { IncidentPanel } from "../components/IncidentPanel";
+import { API_BASE_URL } from "../lib/config";
+import type { IncidentData, ScorecardData, SystemMode, TelemetryPoint } from "../lib/dashboardTypes";
 
 export default function Dashboard() {
   const [theme, setTheme] = useState("palette1");
-  const { run, isRunning, activeNode, logs, status } = useGraphStream();
+  const { run, isRunning, activeNode, logs, status, finalState } = useGraphStream();
+  const [systemMode, setSystemMode] = useState<SystemMode>("MANUAL");
+  const [telemetryData, setTelemetryData] = useState<TelemetryPoint[]>([]);
+  const [scorecardMetrics, setScorecardMetrics] = useState<ScorecardData | null>(null);
+  const [activeIncident, setActiveIncident] = useState<IncidentData | null>(null);
 
   // Apply theme to HTML tag
   useEffect(() => {
@@ -23,6 +32,46 @@ export default function Dashboard() {
 
   const handleRun = (targetFile: string, logsArray: string[], projectPath: string, reproCommand: string) => {
     run(targetFile, logsArray, projectPath, reproCommand);
+  };
+
+  useEffect(() => {
+    if (!finalState?.proposed_patch) return;
+
+    setActiveIncident({
+      originalCode: "// Original code unavailable in stream payload",
+      proposedPatch: finalState.proposed_patch,
+      securityPassed: Boolean(finalState.security_clearance),
+      regexPassed: Boolean(finalState.security_clearance),
+    });
+  }, [finalState]);
+
+  const handleSimulateOutlier = async () => {
+    const response = await fetch(`${API_BASE_URL}/api/v1/anomaly/simulate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer nexus-dev-key",
+      },
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      throw new Error(errorBody.detail || "Simulate outlier failed");
+    }
+
+    const data = await response.json().catch(() => ({}));
+
+    if (Array.isArray(data.telemetry)) {
+      setTelemetryData(data.telemetry);
+    }
+
+    if (data.scorecard) {
+      setScorecardMetrics(data.scorecard);
+    }
+
+    if (data.incident) {
+      setActiveIncident(data.incident);
+    }
   };
 
   return (
@@ -47,20 +96,33 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Configuration Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <IngestPanel />
-          <RunForm onRun={handleRun} isRunning={isRunning} />
-        </div>
+        {/* Component A */}
+        <SreScorecard metrics={scorecardMetrics} />
 
-        {/* Execution & Status Row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column */}
           <div className="lg:col-span-1 space-y-6">
+            <IngestPanel />
             <NodeStatusPanel activeNode={activeNode} />
             <StatusBanner status={status} />
           </div>
-          <TerminalLog logs={logs} />
+
+          {/* Center & Right Column (Span 2) */}
+          <div className="lg:col-span-2 space-y-6">
+            <TelemetryChart data={telemetryData} />
+            <RunForm
+              onRun={handleRun}
+              isRunning={isRunning}
+              systemMode={systemMode}
+              onSystemModeChange={setSystemMode}
+              onSimulateOutlier={handleSimulateOutlier}
+            />
+            <TerminalLog logs={logs} />
+          </div>
         </div>
+
+        {/* Bottom Row */}
+        {activeIncident && <IncidentPanel incident={activeIncident} />}
 
       </div>
     </main>

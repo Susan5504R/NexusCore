@@ -4,7 +4,10 @@ import { useState } from "react";
 import { API_BASE_URL } from "../lib/config";
 
 export function IngestPanel() {
+  const [activeTab, setActiveTab] = useState<"github" | "zip" | "local">("github");
   const [path, setPath] = useState("");
+  const [githubUrl, setGithubUrl] = useState("");
+  const [file, setFile] = useState<File | null>(null);
   const [namespace, setNamespace] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [result, setResult] = useState<{ files: number; chunks: number; time: number } | null>(null);
@@ -12,36 +15,45 @@ export function IngestPanel() {
 
   const handleIngest = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!path.trim()) return;
-
     setStatus("loading");
     setResult(null);
     setError(null);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/v1/ingest`, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": "Bearer nexus-dev-key"
-        },
-        body: JSON.stringify({
-          directory_path: path.trim(),
-          namespace: namespace.trim() || null,
-        }),
-      });
+      let response;
+      if (activeTab === "local") {
+        if (!path.trim()) throw new Error("Path required");
+        response = await fetch(`${API_BASE_URL}/api/v1/ingest`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer nexus-dev-key" },
+          body: JSON.stringify({ directory_path: path.trim(), namespace: namespace.trim() || null }),
+        });
+      } else if (activeTab === "github") {
+        if (!githubUrl.trim()) throw new Error("URL required");
+        response = await fetch(`${API_BASE_URL}/api/v1/ingest/github`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer nexus-dev-key" },
+          body: JSON.stringify({ github_url: githubUrl.trim(), namespace: namespace.trim() || null }),
+        });
+      } else if (activeTab === "zip") {
+        if (!file) throw new Error("File required");
+        const formData = new FormData();
+        formData.append("file", file);
+        if (namespace.trim()) formData.append("namespace", namespace.trim());
+        response = await fetch(`${API_BASE_URL}/api/v1/ingest/upload`, {
+          method: "POST",
+          headers: { "Authorization": "Bearer nexus-dev-key" },
+          body: formData,
+        });
+      }
 
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.detail || "Ingestion failed");
+      if (!response || !response.ok) {
+        const errData = await response?.json().catch(() => ({}));
+        throw new Error(errData?.detail || "Ingestion failed");
       }
 
       const data = await response.json();
-      setResult({
-        files: data.files_processed,
-        chunks: data.chunks_indexed,
-        time: data.elapsed_ms,
-      });
+      setResult({ files: data.files_processed, chunks: data.chunks_indexed, time: data.elapsed_ms });
       setStatus("success");
     } catch (err: any) {
       setError(err.message || "An unknown error occurred");
@@ -55,19 +67,64 @@ export function IngestPanel() {
         <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
         <h2 className="text-lg font-bold text-text-main">Ingest Project</h2>
       </div>
+
+      <div className="flex gap-2 border-b border-surface pb-2">
+        {(["github", "zip", "local"] as const).map(tab => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => { setActiveTab(tab); setStatus("idle"); }}
+            className={`px-3 py-1 text-sm rounded-lg font-medium transition-colors ${
+              activeTab === tab ? "bg-primary text-surface" : "text-text-muted hover:text-text-main hover:bg-surface"
+            }`}
+          >
+            {tab === "github" ? "GitHub URL" : tab === "zip" ? "ZIP Upload" : "Local Path"}
+          </button>
+        ))}
+      </div>
       
       <form onSubmit={handleIngest} className="space-y-3">
-        <div>
-          <label className="block text-xs text-text-muted mb-1 font-medium">Local Directory Path</label>
-          <input
-            type="text"
-            value={path}
-            onChange={(e) => setPath(e.target.value)}
-            placeholder="C:\Users\..."
-            className="w-full bg-base border border-surface rounded-lg px-3 py-2 text-sm text-text-main focus:outline-none focus:border-primary transition-colors placeholder:text-text-muted/50"
-            required
-          />
-        </div>
+        {activeTab === "local" && (
+          <div>
+            <label className="block text-xs text-text-muted mb-1 font-medium">Local Directory Path</label>
+            <input
+              type="text"
+              value={path}
+              onChange={(e) => setPath(e.target.value)}
+              placeholder="C:\Users\..."
+              className="w-full bg-base border border-surface rounded-lg px-3 py-2 text-sm text-text-main focus:outline-none focus:border-primary transition-colors placeholder:text-text-muted/50"
+              required={activeTab === "local"}
+            />
+          </div>
+        )}
+
+        {activeTab === "github" && (
+          <div>
+            <label className="block text-xs text-text-muted mb-1 font-medium">GitHub Repository URL</label>
+            <input
+              type="url"
+              value={githubUrl}
+              onChange={(e) => setGithubUrl(e.target.value)}
+              placeholder="https://github.com/user/repo"
+              className="w-full bg-base border border-surface rounded-lg px-3 py-2 text-sm text-text-main focus:outline-none focus:border-primary transition-colors placeholder:text-text-muted/50"
+              required={activeTab === "github"}
+            />
+          </div>
+        )}
+
+        {activeTab === "zip" && (
+          <div>
+            <label className="block text-xs text-text-muted mb-1 font-medium">Upload ZIP File</label>
+            <input
+              type="file"
+              accept=".zip"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              className="w-full bg-base border border-surface rounded-lg px-3 py-2 text-sm text-text-main focus:outline-none focus:border-primary transition-colors file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+              required={activeTab === "zip"}
+            />
+          </div>
+        )}
+
         <div>
           <label className="block text-xs text-text-muted mb-1 font-medium">Namespace (Optional)</label>
           <input
@@ -78,9 +135,10 @@ export function IngestPanel() {
             className="w-full bg-base border border-surface rounded-lg px-3 py-2 text-sm text-text-main focus:outline-none focus:border-primary transition-colors placeholder:text-text-muted/50"
           />
         </div>
+
         <button
           type="submit"
-          disabled={status === "loading" || !path.trim()}
+          disabled={status === "loading" || (activeTab === "local" && !path) || (activeTab === "github" && !githubUrl) || (activeTab === "zip" && !file)}
           className="w-full bg-surface border border-primary/30 hover:border-primary text-text-main py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/10"
         >
           {status === "loading" ? "Ingesting..." : "Run Ingestion"}

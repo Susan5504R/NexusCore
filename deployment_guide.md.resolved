@@ -1,0 +1,336 @@
+# NexusCore — Free Student Deployment Guide
+
+## The Core Problem
+
+NexusCore isn't a typical web app — it runs AI-generated code inside **Docker containers**. This means:
+
+- ❌ **Render, Railway, Fly.io** — no Docker-in-Docker support. Your sandbox will never execute.
+- ❌ **Vercel/Netlify** — serverless. Can't run a FastAPI backend or Docker.
+- ✅ **A real VM** where you control Docker — this is the only option for full functionality.
+
+---
+
+## Recommended Stack (100% Free)
+
+| Component | Service | Free Tier |
+|---|---|---|
+| **Backend + Docker** | Oracle Cloud (Always Free VM) | 4 ARM CPUs, 24GB RAM, **forever free** |
+| **Frontend** | Vercel | Unlimited hobby projects |
+| **Database (Ledger)** | Supabase | 500MB Postgres, 50K monthly requests |
+| **Vector DB** | Pinecone | 1 index, 100K vectors (already configured) |
+| **LLM** | Google AI Studio | Gemini API free tier (already configured) |
+
+**Total cost: $0/month.** All services above have permanent free tiers (not trials).
+
+---
+
+## Step-by-Step Deployment
+
+### Step 1 — Set Up Supabase (Database)
+
+Since you already have this working in development, you can simply **reuse your existing `SUPABASE_DB_URL`** from your local `.env` file. 
+
+You don't need to change anything! Just copy the exact string you are currently using locally and use it in your Oracle VM's `.env` file later.
+
+---
+
+### Step 2 — Set Up Oracle Cloud VM (Backend — 20 minutes)
+
+This is the most involved step but gives you a **permanently free** server with Docker.
+
+#### 2a. Create an Oracle Cloud account
+1. Go to [cloud.oracle.com/free](https://cloud.oracle.com/free)
+2. Sign up — you need:
+   - Valid email
+   - Phone number (for SMS verification)
+   - Credit/debit card (for identity verification — **you will NOT be charged**)
+3. Choose a **Home Region** close to you (e.g., `ap-mumbai-1` for India, `us-ashburn-1` for US)
+
+#### 2b. Create an Always-Free VM
+1. Go to **Compute → Instances → Create Instance**
+2. Configure:
+   - **Name**: `nexuscore`
+   - **Image**: `Ubuntu 22.04` (or 24.04 if available)
+   - **Shape**: Click "Change Shape" → **Ampere** → `VM.Standard.A1.Flex`
+     - Set OCPUs: `2` (you get up to 4 free, save 2 for headroom)
+     - Set Memory: `12 GB` (you get up to 24 free)
+   - **Networking**: Use defaults (a public subnet is created automatically)
+   - **SSH Key**: Click "Generate a key pair" → **Download both keys** (you'll need them to SSH in)
+3. Click **Create** — wait ~2 min for it to boot
+4. Copy the **Public IP Address** from the instance details page
+
+> [!WARNING]
+> If you get "Out of Host Capacity" errors, try:
+> - A different **Availability Domain** (dropdown on the same page)
+> - Create the VM at a different time (off-peak hours)
+> - Switch to a Pay-As-You-Go account (free resources stay free — you only pay if you exceed limits)
+
+#### 2c. SSH into the VM
+
+```bash
+# Make the key usable (Mac/Linux)
+chmod 400 ~/Downloads/ssh-key-*.key
+
+# Connect
+ssh -i ~/Downloads/ssh-key-*.key ubuntu@<YOUR_PUBLIC_IP>
+```
+
+On Windows, use PuTTY or Windows Terminal with:
+```powershell
+ssh -i C:\Users\mazar\Downloads\ssh-key-*.key ubuntu@<YOUR_PUBLIC_IP>
+```
+
+#### 2d. Install Docker + Python on the VM
+
+```bash
+# Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install Docker
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker $USER
+# Log out and back in for group change to take effect
+exit
+# SSH back in
+ssh -i ~/Downloads/ssh-key-*.key ubuntu@<YOUR_PUBLIC_IP>
+
+# Verify Docker works
+docker run --rm hello-world
+
+# Pull the sandbox image NexusCore needs
+docker pull python:3.10-slim
+
+# Install Python 3.12 + pip + venv
+sudo apt install -y python3.12 python3.12-venv python3-pip git
+```
+
+#### 2e. Deploy the NexusCore backend
+
+```bash
+# Clone your repo
+git clone https://github.com/<your-username>/NexusCore.git
+cd NexusCore/backend
+
+# Create virtualenv
+python3.12 -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Create the .env file
+cp .env.example .env
+nano .env
+```
+
+Fill in your `.env`:
+```env
+GEMINI_API_KEY=your-google-ai-studio-key
+PINECONE_API_KEY=your-pinecone-key
+SUPABASE_DB_URL=postgresql://postgres.[ref]:[pwd]@aws-0-[region].pooler.supabase.com:6543/postgres
+
+# Allow the frontend origin (Vercel URL, set this after Step 3)
+CORS_ORIGINS=["https://nexuscore.vercel.app","http://localhost:3000"]
+
+# Optional: enable the telemetry loop (leave false until you're ready)
+ENABLE_TELEMETRY_LOOP=false
+```
+
+#### 2f. Run with systemd (auto-restart, runs in background)
+
+Create a systemd service so the API starts on boot and restarts on crashes:
+
+```bash
+sudo nano /etc/systemd/system/nexuscore.service
+```
+
+Paste:
+```ini
+[Unit]
+Description=NexusCore SRE API
+After=network.target docker.service
+Wants=docker.service
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/NexusCore/backend
+Environment=PATH=/home/ubuntu/NexusCore/backend/venv/bin:/usr/bin
+ExecStart=/home/ubuntu/NexusCore/backend/venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Enable and start:
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable nexuscore
+sudo systemctl start nexuscore
+
+# Check it's running
+sudo systemctl status nexuscore
+# Check logs
+journalctl -u nexuscore -f
+```
+
+#### 2g. Open port 8000 in Oracle Cloud firewall
+
+Oracle blocks all ports by default. You must open 8000 in **two** places:
+
+**1. OS firewall (iptables):**
+```bash
+sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 8000 -j ACCEPT
+sudo netfilter-persistent save
+```
+
+**2. Oracle Cloud Security List (Web Console):**
+1. Go to **Networking → Virtual Cloud Networks → your VCN → Security Lists → Default Security List**
+2. Click **Add Ingress Rules**:
+   - Source CIDR: `0.0.0.0/0`
+   - Destination Port: `8000`
+   - Description: `NexusCore API`
+3. Save
+
+Test it:
+```
+curl http://<YOUR_PUBLIC_IP>:8000/api/v1/health
+```
+
+You should get `{"status":"ok","dependencies":{...}}`.
+
+---
+
+### Step 3 — Deploy Frontend on Vercel (5 minutes)
+
+1. Go to [vercel.com](https://vercel.com) → Sign up with GitHub
+2. Click **"Add New" → "Project"** → Import your `NexusCore` repo from GitHub
+3. Configure:
+   - **Framework Preset**: Next.js (auto-detected)
+   - **Root Directory**: `frontend`  ← **important!** Click "Edit" and set this
+   - **Environment Variables**: Add one:
+     ```
+     NEXT_PUBLIC_API_BASE_URL = http://<YOUR_ORACLE_VM_PUBLIC_IP>:8000
+     ```
+4. Click **Deploy**
+5. Vercel gives you a URL like `https://nexus-core-xyz.vercel.app`
+
+#### Update CORS on the backend
+
+Now that you have the Vercel URL, SSH back into your VM and update the `.env`:
+
+```bash
+nano ~/NexusCore/backend/.env
+# Update CORS_ORIGINS to include your Vercel URL:
+# CORS_ORIGINS=["https://nexus-core-xyz.vercel.app","http://localhost:3000"]
+
+# Restart the service
+sudo systemctl restart nexuscore
+```
+
+---
+
+### Step 4 — Verify the Full Pipeline
+
+1. **Health check**: Visit `http://<VM_IP>:8000/api/v1/health` in your browser
+2. **Dashboard**: Visit your Vercel URL — you should see the NexusCore SRE dashboard
+3. **Ingest the demo codebase** (from your VM):
+   ```bash
+   curl -X POST http://localhost:8000/api/v1/ingest \
+     -H "Content-Type: application/json" \
+     -d '{"directory_path": "/home/ubuntu/NexusCore/demo"}'
+   ```
+4. **Trigger a repair** from the dashboard — click "Trigger Anomaly" and watch the real-time SSE stream
+
+---
+
+## Architecture Diagram
+
+```
+┌─────────────────┐     SSE/POST      ┌──────────────────────────────────┐
+│  Vercel (Free)  │◄──────────────────►│  Oracle Cloud VM (Always Free)  │
+│  Next.js 16     │    HTTP/SSE        │  FastAPI + Docker               │
+│  Dashboard UI   │                    │  ┌──────────────────────┐       │
+└─────────────────┘                    │  │  Docker Sandbox      │       │
+                                       │  │  python:3.10-slim    │       │
+                                       │  │  network_mode=none   │       │
+                                       │  └──────────────────────┘       │
+                                       └──────────┬───────────┬──────────┘
+                                                  │           │
+                                        ┌─────────▼──┐  ┌────▼───────┐
+                                        │  Supabase  │  │  Pinecone  │
+                                        │  Postgres  │  │  Vector DB │
+                                        │  (Free)    │  │  (Free)    │
+                                        └────────────┘  └────────────┘
+                                                  │
+                                        ┌─────────▼──────────┐
+                                        │  Google AI Studio   │
+                                        │  Gemini API (Free)  │
+                                        └─────────────────────┘
+```
+
+---
+
+## Optional: HTTPS with Caddy (free, auto-SSL)
+
+If you want `https://` instead of `http://` (recommended — Vercel will warn about mixed content):
+
+```bash
+# Install Caddy
+sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+sudo apt update && sudo apt install caddy
+
+# Point a free subdomain to your VM IP
+# Option A: Use a free domain from freedns.afraid.org
+# Option B: Use nip.io (e.g., <YOUR_IP>.nip.io — no setup needed, but no real SSL)
+
+# Configure Caddy reverse proxy
+sudo nano /etc/caddy/Caddyfile
+```
+
+```
+nexuscore.yourdomain.com {
+    reverse_proxy localhost:8000
+}
+```
+
+```bash
+# Open port 443 in Oracle + iptables (same process as port 8000)
+sudo systemctl restart caddy
+```
+
+Then update your Vercel env var to `https://nexuscore.yourdomain.com`.
+
+---
+
+## Updating After Code Changes
+
+```bash
+# On your VM:
+cd ~/NexusCore
+git pull origin main
+cd backend
+source venv/bin/activate
+pip install -r requirements.txt  # only if deps changed
+sudo systemctl restart nexuscore
+
+# On Vercel:
+# Automatic! Push to GitHub → Vercel redeploys automatically
+```
+
+---
+
+## Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `Out of Host Capacity` on Oracle | Try a different Availability Domain, or wait and retry |
+| `connection refused` on port 8000 | Check both iptables AND Oracle Security List rules |
+| Docker `permission denied` | Run `sudo usermod -aG docker $USER`, then log out and back in |
+| Frontend shows CORS errors | Update `CORS_ORIGINS` in `.env` to include your Vercel URL, restart |
+| Mixed content warnings | Set up HTTPS with Caddy (see above) |
+| VM reclaimed by Oracle | Keep a small cron job running: `*/5 * * * * curl -s http://localhost:8000/api/v1/health > /dev/null` |
