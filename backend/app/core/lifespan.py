@@ -45,7 +45,7 @@ async def lifespan(app: FastAPI):
     # Phase 2.1 sets app.state.docker_client.
     import docker
     try:
-        app.state.docker_client = docker.from_env()
+        app.state.docker_client = docker.from_env(version="1.41")
         logger.info("docker client initialized")
     except Exception as exc:
         logger.warning("docker client init failed (is Docker Desktop running?)", extra={"error": str(exc)})

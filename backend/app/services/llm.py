@@ -13,7 +13,8 @@ def get_chat_model() -> ChatGoogleGenerativeAI:
     return ChatGoogleGenerativeAI(
         model=settings.gemini_chat_model,
         google_api_key=settings.gemini_api_key,
-        temperature=0.0
+        temperature=0.0,
+        max_retries=5
     )
 
 def get_security_model() -> ChatGoogleGenerativeAI:
@@ -25,5 +26,6 @@ def get_security_model() -> ChatGoogleGenerativeAI:
     return ChatGoogleGenerativeAI(
         model=settings.gemini_chat_model,
         google_api_key=settings.gemini_api_key,
-        temperature=0.0
+        temperature=0.0,
+        max_retries=5
     )

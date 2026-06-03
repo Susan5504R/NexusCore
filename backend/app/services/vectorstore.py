@@ -54,13 +54,22 @@ class VectorStoreService:
             raise
 
     async def aupsert_documents(self, documents: List[Document], namespace: str = None):
-        """Async wrapper to upsert LangChain Document chunks."""
+        """Async wrapper to upsert LangChain Document chunks in batches to avoid rate limits."""
         if not documents:
             logger.warning("No documents provided to upsert.")
             return
             
-        logger.info(f"Upserting {len(documents)} documents to vector store '{self.index_name}'...")
-        await self.vectorstore.aadd_documents(documents, namespace=namespace)
+        logger.info(f"Upserting {len(documents)} documents to vector store '{self.index_name}' in batches...")
+        
+        import asyncio
+        batch_size = 20
+        for i in range(0, len(documents), batch_size):
+            batch = documents[i:i + batch_size]
+            logger.info(f"Upserting batch {i//batch_size + 1}/{(len(documents)-1)//batch_size + 1}...")
+            await self.vectorstore.aadd_documents(batch, namespace=namespace)
+            if i + batch_size < len(documents):
+                await asyncio.sleep(3)  # Respect free tier rate limits
+                
         logger.info("Upsert complete.")
 
     async def asearch(self, query: str, top_k: int = None, namespace: str = None) -> List[Document]:

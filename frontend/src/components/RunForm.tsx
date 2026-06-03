@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { API_BASE_URL } from "../lib/config";
 
 interface RunFormProps {
   onRun: (targetFile: string, logs: string[], projectPath: string, reproCommand: string) => void;
@@ -21,7 +22,7 @@ export function RunForm({ onRun, isRunning }: RunFormProps) {
     setLoadingFiles(true);
     setFetchError(false);
     try {
-      const url = namespace ? `http://127.0.0.1:8000/api/v1/ingest/files?namespace=${encodeURIComponent(namespace)}` : "http://127.0.0.1:8000/api/v1/ingest/files";
+      const url = namespace ? `${API_BASE_URL}/api/v1/ingest/files?namespace=${encodeURIComponent(namespace)}` : `${API_BASE_URL}/api/v1/ingest/files`;
       const res = await fetch(url, {
         headers: {
           "Authorization": "Bearer nexus-dev-key"

@@ -1,76 +1,173 @@
 import os
+import sys
 import tempfile
 import asyncio
+import subprocess
 import logging
+import shutil
 from typing import Tuple
-
-import docker
 
 from app.core.config import get_settings
 
 logger = logging.getLogger("nexuscore.sandbox")
 
-import shutil
 
-def run_in_sandbox_sync(
+# ── Subprocess-based sandbox (works everywhere, no Docker needed) ─────────
+
+def _run_subprocess_sandbox(
     code: str,
-    docker_client: docker.DockerClient = None,
     project_path: str = "",
     reproduction_command: str = "",
     target_file: str = ""
 ) -> Tuple[int, str, str]:
     """
-    Synchronous docker execution. 
-    If project_path is provided, copies the project to a temp dir, writes the patch 
-    to the target_file in that temp dir, mounts it, installs dependencies from 
-    requirements.txt, and runs the reproduction command.
-    Otherwise, falls back to running the standalone script.
+    Runs the patched code in a local subprocess.
+    Uses a temporary copy of the project so the original files are never mutated.
+    This is the reliable fallback for development / Windows environments where
+    Docker Desktop's Named Pipe connection is unreliable.
     """
     settings = get_settings()
-    
-    try:
-        client = docker_client or docker.from_env()
-    except Exception as e:
-        logger.error(f"Failed to connect to Docker daemon: {e}")
-        return -1, "", f"Failed to connect to Docker daemon: {e}"
-        
-    temp_dir = tempfile.mkdtemp()
-    mounts = {}
-    container_cmd = []
-    working_dir = "/app"
+    temp_dir = tempfile.mkdtemp(prefix="nexus_sandbox_")
 
     try:
         if project_path and os.path.exists(project_path):
-            # Copy project to temporary directory to avoid mutating the original code
-            shutil.copytree(project_path, temp_dir, dirs_exist_ok=True)
-            
-            # Apply the patch to the target file in the temporary directory
+            # Copy only source code (skip heavy dependency dirs)
+            ignore = shutil.ignore_patterns(
+                "node_modules", ".next", "venv", ".venv",
+                "__pycache__", ".git", "*.pyc"
+            )
+            shutil.copytree(project_path, temp_dir, dirs_exist_ok=True, ignore=ignore)
+
+            # Apply the patch to the target file in the temp copy
             if target_file:
-                # Target file can be absolute or relative to project_path
-                rel_target = os.path.relpath(target_file, project_path) if os.path.isabs(target_file) else target_file
+                rel_target = (
+                    os.path.relpath(target_file, project_path)
+                    if os.path.isabs(target_file)
+                    else target_file
+                )
                 target_dest = os.path.join(temp_dir, rel_target)
+
+                # If the direct path doesn't exist, the user likely provided
+                # just a filename (e.g. "buggy_data_processor.py" instead of
+                # "demo/buggy_data_processor.py").  Walk the tree to find it.
+                if not os.path.exists(target_dest):
+                    basename = os.path.basename(rel_target)
+                    for root, _dirs, files in os.walk(temp_dir):
+                        if basename in files:
+                            target_dest = os.path.join(root, basename)
+                            logger.info(f"Resolved target file to: {os.path.relpath(target_dest, temp_dir)}")
+                            break
+
                 os.makedirs(os.path.dirname(target_dest), exist_ok=True)
-                with open(target_dest, 'w', encoding='utf-8') as f:
+                with open(target_dest, "w", encoding="utf-8") as f:
                     f.write(code)
-            
-            mounts = {temp_dir: {'bind': '/app/workspace', 'mode': 'rw'}}
+
+            repro_cmd = reproduction_command or "python main.py"
+            cwd = temp_dir
+        else:
+            # Standalone script mode
+            script_path = os.path.join(temp_dir, "script.py")
+            with open(script_path, "w", encoding="utf-8") as f:
+                f.write(code)
+            repro_cmd = f"{sys.executable} script.py"
+            cwd = temp_dir
+
+        logger.info(f"Subprocess sandbox: running '{repro_cmd}' in {cwd}")
+
+        result = subprocess.run(
+            repro_cmd,
+            shell=True,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+            timeout=settings.sandbox_timeout_seconds,
+            env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+        )
+
+        return result.returncode, result.stdout, result.stderr
+
+    except subprocess.TimeoutExpired:
+        logger.error("Subprocess sandbox timed out.")
+        return -1, "", f"Execution timed out after {settings.sandbox_timeout_seconds}s"
+    except Exception as e:
+        logger.error(f"Subprocess sandbox failed: {e}")
+        return -1, "", str(e)
+    finally:
+        try:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+        except Exception:
+            pass
+
+
+# ── Docker-based sandbox (production isolation) ───────────────────────────
+
+def _run_docker_sandbox(
+    code: str,
+    project_path: str = "",
+    reproduction_command: str = "",
+    target_file: str = ""
+) -> Tuple[int, str, str]:
+    """
+    Runs the patched code inside an ephemeral Docker container for full isolation.
+    Used in production environments where Docker is stable.
+    """
+    import docker
+
+    settings = get_settings()
+
+    try:
+        client = docker.from_env(version="1.41")
+    except Exception as e:
+        logger.error(f"Failed to connect to Docker daemon: {e}")
+        return -1, "", f"Failed to connect to Docker daemon: {e}"
+
+    temp_dir = tempfile.mkdtemp(prefix="nexus_sandbox_")
+    mounts = {}
+    container_cmd = []
+    working_dir = "/app"
+    container = None
+
+    try:
+        if project_path and os.path.exists(project_path):
+            ignore = shutil.ignore_patterns(
+                "node_modules", ".next", "venv", ".venv",
+                "__pycache__", ".git", "*.pyc"
+            )
+            shutil.copytree(project_path, temp_dir, dirs_exist_ok=True, ignore=ignore)
+
+            if target_file:
+                rel_target = (
+                    os.path.relpath(target_file, project_path)
+                    if os.path.isabs(target_file)
+                    else target_file
+                )
+                target_dest = os.path.join(temp_dir, rel_target)
+
+                if not os.path.exists(target_dest):
+                    basename = os.path.basename(rel_target)
+                    for root, _dirs, files in os.walk(temp_dir):
+                        if basename in files:
+                            target_dest = os.path.join(root, basename)
+                            break
+
+                os.makedirs(os.path.dirname(target_dest), exist_ok=True)
+                with open(target_dest, "w", encoding="utf-8") as f:
+                    f.write(code)
+
+            mounts = {temp_dir: {"bind": "/app/workspace", "mode": "rw"}}
             working_dir = "/app/workspace"
-            
-            # Setup command to install requirements and run reproduction command
             repro_cmd = reproduction_command or "python main.py"
             container_cmd = [
-                "/bin/sh", "-c", 
+                "/bin/sh", "-c",
                 f"if [ -f requirements.txt ]; then pip install --disable-pip-version-check -r requirements.txt || true; fi; {repro_cmd}"
             ]
         else:
-            # Fallback to standalone script execution
             temp_path = os.path.join(temp_dir, "script.py")
-            with open(temp_path, 'w', encoding='utf-8') as f:
+            with open(temp_path, "w", encoding="utf-8") as f:
                 f.write(code)
-                
-            mounts = {temp_path: {'bind': '/app/script.py', 'mode': 'ro'}}
+            mounts = {temp_path: {"bind": "/app/script.py", "mode": "ro"}}
             container_cmd = ["python", "/app/script.py"]
-            
+
         container = client.containers.run(
             image=settings.sandbox_image,
             command=container_cmd,
@@ -80,65 +177,69 @@ def run_in_sandbox_sync(
             mem_limit=settings.sandbox_mem_limit,
             nano_cpus=settings.sandbox_nano_cpus,
             detach=True,
-            remove=False
+            remove=False,
         )
-        
+
         try:
             result = container.wait(timeout=settings.sandbox_timeout_seconds)
-            exit_code = result.get('StatusCode', -1)
-            
+            exit_code = result.get("StatusCode", -1)
             stdout = container.logs(stdout=True, stderr=False)
             stderr = container.logs(stdout=False, stderr=True)
-            
-            stdout_str = stdout.decode('utf-8', errors='replace') if stdout else ""
-            stderr_str = stderr.decode('utf-8', errors='replace') if stderr else ""
-            
+            stdout_str = stdout.decode("utf-8", errors="replace") if stdout else ""
+            stderr_str = stderr.decode("utf-8", errors="replace") if stderr else ""
         except Exception as wait_exc:
             logger.error(f"Container wait error or timeout: {wait_exc}")
             container.kill()
             exit_code = -1
+            stdout_str = ""
             stderr_str = f"Execution timed out or failed to wait: {wait_exc}"
-            
+
     except docker.errors.ImageNotFound:
         logger.error(f"Sandbox image {settings.sandbox_image} not found.")
         return -1, "", f"Sandbox image '{settings.sandbox_image}' not found locally. Please run 'docker pull {settings.sandbox_image}'."
     except Exception as e:
-        logger.error(f"Sandbox execution failed: {e}")
+        logger.error(f"Docker sandbox execution failed: {e}")
         return -1, "", str(e)
     finally:
-        # Cleanup container
-        if 'container' in locals() and container:
+        if container is not None:
             try:
                 container.remove(force=True)
             except Exception as e:
                 logger.warning(f"Failed to remove container: {e}")
-                
-        # Cleanup temporary directory
-        if os.path.exists(temp_dir):
-            try:
-                shutil.rmtree(temp_dir)
-            except Exception as e:
-                logger.warning(f"Failed to remove temporary directory {temp_dir}: {e}")
-                
+        try:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+        except Exception:
+            pass
+
     return exit_code, stdout_str, stderr_str
+
+
+# ── Public async entry point ──────────────────────────────────────────────
 
 async def execute_in_sandbox(
     code: str,
-    docker_client: docker.DockerClient = None,
+    docker_client=None,
     project_path: str = "",
     reproduction_command: str = "",
     target_file: str = ""
 ) -> Tuple[int, str, str]:
     """
-    Async wrapper for sandbox execution to prevent blocking the event loop.
+    Async wrapper for sandbox execution.
+    Dispatches to either Docker or subprocess based on SANDBOX_MODE setting.
     Returns (exit_code, stdout, stderr).
     """
-    logger.info("Dispatching code to Docker sandbox...")
-    return await asyncio.to_thread(
-        run_in_sandbox_sync,
-        code,
-        docker_client,
-        project_path,
-        reproduction_command,
-        target_file
-    )
+    settings = get_settings()
+    mode = settings.sandbox_mode
+
+    if mode == "docker":
+        logger.info("Dispatching code to Docker sandbox...")
+        return await asyncio.to_thread(
+            _run_docker_sandbox, code, project_path,
+            reproduction_command, target_file
+        )
+    else:
+        logger.info("Dispatching code to subprocess sandbox...")
+        return await asyncio.to_thread(
+            _run_subprocess_sandbox, code, project_path,
+            reproduction_command, target_file
+        )

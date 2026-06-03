@@ -7,11 +7,13 @@ from sse_starlette.sse import EventSourceResponse
 from app.core.schemas import GraphRunRequest, GraphRunResponse, GraphStreamEvent, new_agent_state
 from app.services.graph_runner import execute_repair, record_ledger_entry, sre_orchestrator
 from app.security.auth import verify_api_key
+from app.core.limiter import limiter
 
 logger = logging.getLogger("nexuscore.api.graph")
 router = APIRouter()
 
 @router.post("/run", response_model=GraphRunResponse, dependencies=[Depends(verify_api_key)])
+@limiter.limit("5/minute")
 async def run_graph(request: Request, payload: GraphRunRequest):
     """
     Triggers a full execution of the autonomous SRE repair LangGraph.
@@ -41,6 +43,7 @@ async def run_graph(request: Request, payload: GraphRunRequest):
 
 
 @router.post("/run/stream", dependencies=[Depends(verify_api_key)])
+@limiter.limit("5/minute")
 async def stream_graph(request: Request, payload: GraphRunRequest):
     """
     Triggers the autonomous SRE LangGraph and yields an SSE stream of node updates.

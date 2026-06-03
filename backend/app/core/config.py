@@ -50,7 +50,10 @@ class Settings(BaseSettings):
     chunk_overlap: int = 150
     retrieval_top_k: int = 5
 
-    # ── Docker sandbox (Phase 2) ──────────────────────────────────────────
+    # ── Sandbox (Phase 2) ─────────────────────────────────────────────────
+    # "subprocess" = runs patches locally (fast, reliable on Windows dev)
+    # "docker"     = runs patches in an isolated Docker container (production)
+    sandbox_mode: str = "subprocess"
     sandbox_image: str = "python:3.10-slim"
     sandbox_mem_limit: str = "128m"
     sandbox_nano_cpus: int = 500_000_000  # 0.5 CPU cores

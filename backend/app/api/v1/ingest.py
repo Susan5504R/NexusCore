@@ -6,11 +6,13 @@ from app.core.schemas import IngestRequest, IngestResponse, OperationalLogEntry
 from app.services.ingestion import ingest_directory
 from app.services.vectorstore import get_vectorstore_service
 from app.security.auth import verify_api_key
+from app.core.limiter import limiter
 
 logger = logging.getLogger("nexuscore.api.ingest")
 router = APIRouter()
 
 @router.post("/ingest", response_model=IngestResponse, dependencies=[Depends(verify_api_key)])
+@limiter.limit("2/minute")
 async def ingest_codebase(request: Request, payload: IngestRequest):
     """
     Ingests a local directory, splitting the code into language-aware chunks
@@ -66,7 +68,8 @@ async def ingest_codebase(request: Request, payload: IngestRequest):
     return response_data
 
 @router.get("/ingest/files", dependencies=[Depends(verify_api_key)])
-async def list_ingested_files(namespace: str = None):
+@limiter.limit("30/minute")
+async def list_ingested_files(request: Request, namespace: str = None):
     """
     Returns a list of unique file paths currently ingested in the given namespace.
     """

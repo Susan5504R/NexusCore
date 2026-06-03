@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { API_BASE_URL } from "../lib/config";
 
 export function IngestPanel() {
   const [path, setPath] = useState("");
@@ -18,7 +19,7 @@ export function IngestPanel() {
     setError(null);
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/api/v1/ingest", {
+      const response = await fetch(`${API_BASE_URL}/api/v1/ingest`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",

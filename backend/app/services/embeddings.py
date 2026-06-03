@@ -14,5 +14,6 @@ def get_embeddings() -> GoogleGenerativeAIEmbeddings:
     
     return GoogleGenerativeAIEmbeddings(
         model=settings.gemini_embedding_model,
-        google_api_key=settings.gemini_api_key
+        google_api_key=settings.gemini_api_key,
+        max_retries=5
     )

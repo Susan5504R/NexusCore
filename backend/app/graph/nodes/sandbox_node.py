@@ -40,6 +40,16 @@ async def sandbox_node(state: AgentState) -> dict:
             import os
             rel_target = os.path.relpath(target_file, project_path) if os.path.isabs(target_file) else target_file
             original_target = os.path.join(project_path, rel_target)
+            
+            # If the direct path doesn't exist, search the project tree
+            if not os.path.exists(original_target):
+                basename = os.path.basename(rel_target)
+                for root, _dirs, files in os.walk(project_path):
+                    if basename in files:
+                        original_target = os.path.join(root, basename)
+                        logger.info(f"Resolved deploy target to: {original_target}")
+                        break
+            
             try:
                 os.makedirs(os.path.dirname(original_target), exist_ok=True)
                 with open(original_target, 'w', encoding='utf-8') as f:

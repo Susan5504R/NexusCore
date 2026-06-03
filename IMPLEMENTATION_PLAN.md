@@ -231,9 +231,9 @@ working copy, re-runs the repro in the sandbox, and keeps the change only if it 
 otherwise rolls back. This finally makes "deploy the fix" true.
 
 ### 5.5 Auth & safety hardening
-API-key/JWT auth on all endpoints, HMAC signature verification on the anomaly webhook, and
-basic rate limiting — required before any of the above is exposed, since the system executes
-user-supplied code.
+- [x] Basic rate limiting on SRE endpoints
+- [x] API-key/JWT auth on all endpoints
+- [x] HMAC webhook signature verification for anomaly triggers
 
 ---
 

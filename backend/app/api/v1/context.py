@@ -8,6 +8,7 @@ from app.core.schemas import ContextQueryRequest, OperationalLogEntry
 from app.services.vectorstore import get_vectorstore_service
 from app.services.llm import get_chat_model
 from app.security.auth import verify_api_key
+from app.core.limiter import limiter
 
 logger = logging.getLogger("nexuscore.api.context")
 router = APIRouter()
@@ -18,6 +19,7 @@ If the context doesn't contain the answer, state that you cannot find the answer
 """
 
 @router.post("/context/query", dependencies=[Depends(verify_api_key)])
+@limiter.limit("20/minute")
 async def context_query(request: Request, payload: ContextQueryRequest):
     """
     RAG inference loop:
