@@ -63,5 +63,46 @@ if __name__ == "__main__":
         
         return {"messages": [context_message]}
     except Exception as e:
-        logger.error(f"Context retrieval failed: {e}")
-        return {"messages": [{"role": "system", "content": f"Failed to retrieve context: {e}"}]}
+        logger.warning(f"Vector search failed ({e}). Falling back to traceback regex extraction + dummy vector query...")
+        
+        # Fallback: if Gemini embeddings are exhausted, we can't embed the query.
+        # But we can regex the file name from the traceback, and query Pinecone 
+        # using a dummy vector [0]*3072 and a metadata filter!
+        import re
+        matches = re.findall(r'File "([^"]+)", line', logs)
+        if matches:
+            target_filename = matches[-1].replace("\\", "/").split("/")[-1] # Get basename
+            logger.info(f"Fallback extracted filename: {target_filename}")
+            
+            try:
+                from app.services.vectorstore import get_vectorstore_service
+                from app.core.config import get_settings
+                vstore_service = get_vectorstore_service()
+                
+                # If running on cloud (Pinecone)
+                if not get_settings().is_local:
+                    index = vstore_service.pc.Index(vstore_service.index_name)
+                    # Query Pinecone directly bypassing LangChain's embedding step
+                    res = index.query(
+                        vector=[0.0] * get_settings().embedding_dimension,
+                        top_k=20,
+                        include_metadata=True
+                    )
+                    
+                    # Filter locally since Pinecone metadata filters on string 'ends_with' is complex
+                    context_blocks = []
+                    for match in res.get("matches", []):
+                        path = match.get("metadata", {}).get("path", "")
+                        if path.endswith(target_filename):
+                            text = match.get("metadata", {}).get("text", "")
+                            context_blocks.append(f"--- File: {path} ---\n{text}")
+                            
+                    if context_blocks:
+                        assembled_context = "\n\n".join(context_blocks)
+                        logger.info("Fallback successful: Retrieved context using zero-vector Pinecone query.")
+                        return {"messages": [{"role": "system", "content": f"Retrieved Context from Codebase:\n{assembled_context}"}]}
+            except Exception as fallback_err:
+                logger.error(f"Fallback dummy vector query failed: {fallback_err}")
+                
+        logger.error(f"Fallback extraction failed.")
+        return {"messages": [{"role": "system", "content": f"Failed to retrieve context (embeddings exhausted, and fallback query failed): {e}"}]}
