@@ -1,17 +1,12 @@
 {
-  "builds": [
-    {
-      "src": "frontend/next.config.js",
-      "use": "@vercel/next"
-    }
-  ],
+  "framework": "nextjs",
+  "installCommand": "npm ci",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "https://nexuscore-api.onrender.com/api/v1/$1"
+      "source": "/api/:path*",
+      "destination": "https://nexuscore-api.onrender.com/api/v1/:path*"
     }
-  ],
-  "env": {
-    "NEXT_PUBLIC_API_BASE_URL": "https://nexuscore-api.onrender.com"
-  }
+  ]
 }

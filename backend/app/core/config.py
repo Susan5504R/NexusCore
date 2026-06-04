@@ -103,6 +103,10 @@ class Settings(BaseSettings):
         "http://localhost:3002",
         "http://127.0.0.1:3000",
         "http://127.0.0.1:3001",
+        # Cloud deployment (Vercel)
+        "https://nexuscore.vercel.app",
+        "https://nexuscore-frontend.vercel.app",
+        "https://nexus-core.vercel.app",
     ]
     
     # ── Mock/Demo Mode (allows testing without API keys / quotas) ────────

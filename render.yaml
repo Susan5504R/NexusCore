@@ -2,14 +2,26 @@ services:
   - type: web
     name: nexuscore-api
     env: python
-    buildCommand: docker build -t nexuscore-api .
+    region: oregon
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt && pip install --no-deps -r requirements-nodeps.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port 8000
     envVars:
-      DEPLOYMENT_MODE: cloud
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
-      PINECONE_API_KEY: ${PINECONE_API_KEY}
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
-      SUPABASE_DB_URL: ${SUPABASE_DB_URL}
+      - key: DEPLOYMENT_MODE
+        value: cloud
+      - key: SANDBOX_MODE
+        value: subprocess
+      - key: ENABLE_TELEMETRY_LOOP
+        value: "false"
+      - key: USE_MOCK_LLM
+        value: "false"
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: PINECONE_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: SUPABASE_DB_URL
+        sync: false
     healthCheckPath: /health
     autoDeploy: true
-    # Render requires a runtime.txt to pick Python version; include it in repo root.
