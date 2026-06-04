@@ -36,7 +36,7 @@ class TestModificationNodeTokens:
     @pytest.mark.asyncio
     async def test_tokens_extracted_from_usage_metadata(self, monkeypatch):
         """When the raw AIMessage has usage_metadata, the node returns its total_tokens."""
-        patch_result = PatchProposal(reasoning="Fix it.", python_code="print('ok')")
+        patch_result = PatchProposal(reasoning="Fix it.", target_file="main.py", code="print('ok')")
 
         class _FakeStructured:
             async def ainvoke(self, *_a, **_k):
@@ -60,7 +60,7 @@ class TestModificationNodeTokens:
     @pytest.mark.asyncio
     async def test_tokens_default_to_zero_when_usage_metadata_absent(self, monkeypatch):
         """If usage_metadata is None (some model configs omit it), fall back to 0."""
-        patch_result = PatchProposal(reasoning="Fix it.", python_code="print('ok')")
+        patch_result = PatchProposal(reasoning="Fix it.", target_file="main.py", code="print('ok')")
 
         raw_no_meta = AIMessage(content="", usage_metadata=None)
 

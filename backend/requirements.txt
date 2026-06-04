@@ -16,6 +16,8 @@ langchain-text-splitters==0.3.5
 langchain-pinecone==0.2.8
 google-generativeai==0.8.3
 pinecone>=6.0.0,<7.0.0
+chromadb==0.5.23
+langchain-chroma==0.1.4
 
 # Ingestion helpers
 pathspec==0.12.1

@@ -71,8 +71,24 @@ class FakeChatModel:
 
 @pytest.fixture
 def mock_ledger():
+    from app.core.schemas import OperationalLogEntry
+
     ledger = AsyncMock()
     ledger.ping = AsyncMock(return_value=True)
+    ledger.fetch_recent = AsyncMock(
+        return_value=[
+            OperationalLogEntry(
+                id="00000000-0000-0000-0000-000000000001",
+                timestamp="2026-01-01T00:00:00+00:00",
+                event_source="api/v1/graph/run/stream",
+                agent_action="autonomous_repair",
+                execution_payload="Target: demo/buggy_server.py | Retries: 1",
+                execution_status="success",
+                token_consumption=42,
+                compute_latency_ms=2400,
+            )
+        ]
+    )
     return ledger
 
 
@@ -97,7 +113,11 @@ def patch_services(monkeypatch, mock_ledger, fake_vectorstore):
     deterministically offline. Autouse so even pure-logic tests stay isolated."""
 
     chat_model = FakeChatModel(
-        PatchProposal(reasoning="Add the missing import.", python_code=SAFE_PATCH)
+        PatchProposal(
+            reasoning="Add the missing import.",
+            target_file="demo/buggy_server.py",
+            code=SAFE_PATCH,
+        )
     )
     security_model = FakeChatModel(
         SecurityDecision(is_safe=True, reason="Standard application logic fix.")

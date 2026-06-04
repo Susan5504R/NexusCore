@@ -65,11 +65,31 @@ CREATE TABLE IF NOT EXISTS operational_logs (
 );
 """
 
+_CREATE_API_KEYS_TABLE = """
+CREATE TABLE IF NOT EXISTS api_keys (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    key_hash VARCHAR(64) UNIQUE NOT NULL,
+    namespace VARCHAR(255) NOT NULL,
+    label VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    revoked BOOLEAN DEFAULT FALSE,
+    last_used_at TIMESTAMP WITH TIME ZONE
+);
+"""
+
 _INSERT = """
 INSERT INTO operational_logs
     (event_source, agent_action, execution_payload, execution_status,
      token_consumption, compute_latency_ms, ragas_fidelity_score)
 VALUES ($1, $2, $3, $4, $5, $6, $7);
+"""
+
+_SELECT_RECENT = """
+SELECT id, timestamp, event_source, agent_action, execution_payload,
+       execution_status, token_consumption, compute_latency_ms, ragas_fidelity_score
+FROM operational_logs
+ORDER BY timestamp DESC
+LIMIT $1;
 """
 
 
@@ -96,6 +116,7 @@ class Ledger:
     async def ensure_schema(self) -> None:
         async with self._pool.acquire() as conn:
             await conn.execute(_CREATE_TABLE)
+            await conn.execute(_CREATE_API_KEYS_TABLE)
         logger.info("ledger schema ensured")
 
     async def log_event(self, entry: OperationalLogEntry) -> None:
@@ -115,6 +136,38 @@ class Ledger:
                 )
         except Exception as exc:  # noqa: BLE001 - observability is not critical-path
             logger.warning("ledger write failed", extra={"error": str(exc)})
+
+    async def fetch_recent(self, limit: int = 20) -> list[OperationalLogEntry]:
+        """Return the most recent audit records, newest first.
+
+        Read side of the operational ledger that powers the dashboard's run
+        history. Never raises — on failure it returns an empty list so the UI
+        degrades gracefully rather than erroring."""
+        try:
+            async with self._pool.acquire() as conn:
+                rows = await conn.fetch(_SELECT_RECENT, limit)
+        except Exception as exc:  # noqa: BLE001 - observability is not critical-path
+            logger.warning("ledger read failed", extra={"error": str(exc)})
+            return []
+
+        return [
+            OperationalLogEntry(
+                id=str(row["id"]),
+                timestamp=row["timestamp"].isoformat() if row["timestamp"] else None,
+                event_source=row["event_source"],
+                agent_action=row["agent_action"],
+                execution_payload=row["execution_payload"],
+                execution_status=row["execution_status"],
+                token_consumption=row["token_consumption"] or 0,
+                compute_latency_ms=row["compute_latency_ms"] or 0,
+                ragas_fidelity_score=(
+                    float(row["ragas_fidelity_score"])
+                    if row["ragas_fidelity_score"] is not None
+                    else None
+                ),
+            )
+            for row in rows
+        ]
 
     async def ping(self) -> bool:
         """Cheap readiness check for the health endpoint."""

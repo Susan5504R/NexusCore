@@ -40,14 +40,15 @@ async def arbitration_node(state: AgentState) -> dict:
     # include_raw=True preserves the AIMessage so we can extract usage_metadata.total_tokens.
     security_model = get_security_model().with_structured_output(SecurityDecision, include_raw=True)
     
-    system_instruction = "You are a strict DevSecOps AI. Analyze Python scripts for destructive operations."
+    target_file = state.get("current_target_file", "")
+    system_instruction = "You are a strict DevSecOps AI. Analyze source code in any language for destructive operations."
     prompt = f"""
-    Analyze the following Python script.
-    If the script contains destructive operations (e.g., os.system('rm -rf'), malicious subprocess calls, unauthorized network exfiltration), mark it as UNSAFE (is_safe=False).
+    Analyze the following source code (file: {target_file or 'unknown'}). Infer the language from the file extension and contents.
+    If the code contains destructive operations (e.g., shell calls like 'rm -rf', malicious subprocess/exec calls, unauthorized network exfiltration), mark it as UNSAFE (is_safe=False).
     If it is a standard application logic fix, mark it as SAFE (is_safe=True).
-    
+
     Code to evaluate:
-    ```python
+    ```
     {patch}
     ```
     """

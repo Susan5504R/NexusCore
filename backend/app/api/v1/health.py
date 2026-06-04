@@ -20,7 +20,8 @@ async def health(request: Request) -> HealthResponse:
     settings = state.settings
     deps: dict[str, str] = {}
 
-    deps["gemini"] = "ok" if settings.gemini_api_key else "not_configured"
+    deps["openrouter"] = "ok" if settings.openrouter_api_key else "not_configured"
+    deps["gemini_embeddings"] = "ok" if settings.gemini_api_key else "not_configured"
 
     pinecone_client = getattr(state, "pinecone", None)
     if pinecone_client is None:
@@ -48,5 +49,5 @@ async def health(request: Request) -> HealthResponse:
     else:
         deps["ledger"] = "ok" if await ledger.ping() else "error"
 
-    overall = "ok" if all(v == "ok" for v in (deps["gemini"], deps["pinecone"])) else "degraded"
+    overall = "ok" if all(v == "ok" for v in (deps["openrouter"], deps["pinecone"])) else "degraded"
     return HealthResponse(status=overall, dependencies=deps)

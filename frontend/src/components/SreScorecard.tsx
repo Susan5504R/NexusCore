@@ -4,27 +4,42 @@ type ScorecardProps = {
   metrics: ScorecardData | null;
 };
 
-const formatPercent = (value?: number) => {
+const formatTokens = (value?: number) => {
   if (value === undefined || value === null) return "--";
-  return `${Math.round(value * 100)}%`;
+  return value.toLocaleString();
 };
 
-const formatCost = (value?: number) => {
+const formatLatency = (value?: number) => {
   if (value === undefined || value === null) return "--";
-  return `$${value.toFixed(3)}`;
+  if (value < 1000) return `${value}ms`;
+  return `${(value / 1000).toFixed(1)}s`;
 };
 
-const formatLatency = (value?: string) => {
-  if (!value) return "--";
-  return value;
+const formatRetries = (value?: number) => {
+  if (value === undefined || value === null) return "--";
+  return `${value}`;
+};
+
+const OUTCOME_LABEL: Record<ScorecardData["outcome"], string> = {
+  success: "Verified",
+  blocked: "Blocked",
+  failed: "Failed",
 };
 
 export function SreScorecard({ metrics }: ScorecardProps) {
+  const outcome = metrics?.outcome;
+  const outcomeColor =
+    outcome === "success"
+      ? "text-success drop-shadow-[0_0_10px_rgba(74,222,128,0.35)]"
+      : outcome
+      ? "text-error drop-shadow-[0_0_10px_rgba(239,68,68,0.35)]"
+      : "text-[#f3d6c7] drop-shadow-[0_0_10px_rgba(243,214,199,0.35)]";
+
   const cards = [
-    { label: "Faithfulness", value: formatPercent(metrics?.faithfulness) },
-    { label: "Context Recall", value: formatPercent(metrics?.contextRecall) },
-    { label: "Token Cost", value: formatCost(metrics?.tokenCost) },
-    { label: "Execution Latency", value: formatLatency(metrics?.latency) },
+    { label: "Tokens Used", value: formatTokens(metrics?.tokensUsed), color: null },
+    { label: "Execution Latency", value: formatLatency(metrics?.latencyMs), color: null },
+    { label: "Retry Cycles", value: formatRetries(metrics?.retryCount), color: null },
+    { label: "Outcome", value: outcome ? OUTCOME_LABEL[outcome] : "--", color: outcomeColor },
   ];
 
   return (
@@ -35,7 +50,11 @@ export function SreScorecard({ metrics }: ScorecardProps) {
           className="rounded-2xl border border-primary/20 bg-[#2c130d] px-5 py-4 shadow-lg"
         >
           <p className="text-xs uppercase tracking-wide text-text-muted">{card.label}</p>
-          <p className="mt-2 text-2xl font-semibold text-[#f3d6c7] drop-shadow-[0_0_10px_rgba(243,214,199,0.35)]">
+          <p
+            className={`mt-2 text-2xl font-semibold ${
+              card.color ?? "text-[#f3d6c7] drop-shadow-[0_0_10px_rgba(243,214,199,0.35)]"
+            }`}
+          >
             {card.value}
           </p>
         </div>

@@ -3,9 +3,11 @@ export interface GraphStreamStateDelta {
   retry_count?: number;
   execution_exit_code?: number;
   security_clearance?: boolean;
+  original_code?: string;
   proposed_patch?: string;
   latest_message?: string;
   token_consumption?: number;
+  latency_ms?: number;
 }
 
 export interface GraphStreamEvent {

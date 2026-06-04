@@ -3,15 +3,20 @@ import hashlib
 import logging
 from fastapi import Security, HTTPException, Request, Header
 from fastapi.security import APIKeyHeader
+from pydantic import BaseModel
 from app.core.config import get_settings
 
 logger = logging.getLogger("nexuscore.security.auth")
 
+class AuthContext(BaseModel):
+    namespace: str | None = None
+
 api_key_header = APIKeyHeader(name="Authorization", auto_error=False)
 
-def verify_api_key(api_key: str = Security(api_key_header)) -> str:
+async def verify_api_key(request: Request, api_key: str = Security(api_key_header)) -> AuthContext:
     """
-    Dependency to verify the Authorization header or x-api-key matches the configured nexus_api_key.
+    Dependency to verify the Authorization header or x-api-key matches the configured nexus_api_key,
+    or resolves a SaaS key via ApiKeyService.
     Extracts the key if passed as 'Bearer <token>' or raw.
     """
     settings = get_settings()
@@ -23,11 +28,27 @@ def verify_api_key(api_key: str = Security(api_key_header)) -> str:
     if api_key.lower().startswith("bearer "):
         api_key = api_key[7:].strip()
         
+    if api_key.startswith("nx_core_"):
+        ledger = getattr(request.app.state, "ledger", None)
+        if not ledger:
+            logger.error("Ledger not configured; cannot resolve SaaS keys.")
+            raise HTTPException(status_code=401, detail="Authentication unavailable")
+            
+        from app.services.api_keys import ApiKeyService
+        key_svc = ApiKeyService(ledger)
+        namespace = await key_svc.resolve_key(api_key)
+        
+        if not namespace:
+            logger.warning("Failed SaaS API key authentication attempt")
+            raise HTTPException(status_code=401, detail="Invalid Authentication Token")
+            
+        return AuthContext(namespace=namespace)
+        
     if not hmac.compare_digest(api_key, settings.nexus_api_key):
         logger.warning("Failed API key authentication attempt")
         raise HTTPException(status_code=401, detail="Invalid Authentication Token")
         
-    return api_key
+    return AuthContext(namespace=None)
 
 async def verify_webhook_signature(request: Request, x_nexus_signature: str = Header(None)):
     """

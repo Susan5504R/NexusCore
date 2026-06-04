@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  chromadb:
+    image: chromadb/chroma:latest
+    volumes:
+      - chroma_data:/chroma/chroma
+    # No host port mapping to avoid clash with backend.
+    # Port 8000 is accessible internally to the backend as chromadb:8000.
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - DEPLOYMENT_MODE=local
+      - SANDBOX_MODE=docker
+      - CHROMA_HOST=chromadb
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - SUPABASE_DB_URL=${SUPABASE_DB_URL:-}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - sandbox_workspaces:/sandbox
+    depends_on:
+      - chromadb
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  chroma_data:
+  sandbox_workspaces:
+    name: sandbox_workspaces

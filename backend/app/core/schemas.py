@@ -35,6 +35,7 @@ class AgentState(TypedDict):
     discovered_logs: List[str]
     project_path: str
     reproduction_command: str
+    original_code: str
     proposed_patch: str
     execution_exit_code: int
     execution_stderr: str
@@ -70,6 +71,7 @@ def new_agent_state(
         discovered_logs=discovered_logs or [],
         project_path=project_path,
         reproduction_command=reproduction_command,
+        original_code="",
         proposed_patch="",
         execution_exit_code=-1,
         execution_stderr="",
@@ -137,6 +139,12 @@ class GraphRunResponse(BaseModel):
     security_clearance: bool
     proposed_patch: str
 
+class TelemetryIngestPayload(BaseModel):
+    cpu: float = Field(..., description="CPU usage percent (0-100)")
+    mem: float = Field(..., description="Memory usage percent (0-100)")
+    error_rate: float = Field(..., description="Error rate fraction (0-1)")
+    logs: List[str] = Field(default_factory=list, description="Optional list of log lines or messages")
+
 
 # ───────────────────────────── API: graph run stream ─────────────────────────
 class GraphStreamEvent(BaseModel):
@@ -149,7 +157,14 @@ class GraphStreamEvent(BaseModel):
     @classmethod
     def from_delta(cls, run_id: str, node_name: str, delta: dict) -> "GraphStreamEvent":
         state_payload = {"active_node": node_name}
-        for key in ["retry_count", "execution_exit_code", "security_clearance", "proposed_patch"]:
+        for key in [
+            "retry_count",
+            "execution_exit_code",
+            "security_clearance",
+            "proposed_patch",
+            "original_code",
+            "token_consumption",
+        ]:
             if key in delta:
                 state_payload[key] = delta[key]
                 

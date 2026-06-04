@@ -1,5 +1,5 @@
 import logging
-from typing import List
+from typing import List, Protocol
 
 from pinecone import Pinecone, ServerlessSpec
 from langchain_pinecone import PineconeVectorStore
@@ -10,7 +10,13 @@ from app.services.embeddings import get_embeddings
 
 logger = logging.getLogger("nexuscore.vectorstore")
 
-class VectorStoreService:
+class VectorStore(Protocol):
+    async def aupsert_documents(self, documents: List[Document], namespace: str = None) -> None: ...
+    async def asearch(self, query: str, top_k: int = None, namespace: str = None) -> List[Document]: ...
+    async def aget_unique_files(self, namespace: str = None) -> List[str]: ...
+
+
+class PineconeVectorStoreService:
     def __init__(self, pc_client: Pinecone = None):
         self.settings = get_settings()
         # Use provided client (e.g., from app.state) or create a new one
@@ -59,14 +65,15 @@ class VectorStoreService:
             logger.warning("No documents provided to upsert.")
             return
             
-        logger.info(f"Upserting {len(documents)} documents to vector store '{self.index_name}' in batches...")
+        ns = namespace or "default"
+        logger.info(f"Upserting {len(documents)} documents to vector store '{self.index_name}' (namespace: {ns}) in batches...")
         
         import asyncio
         batch_size = 20
         for i in range(0, len(documents), batch_size):
             batch = documents[i:i + batch_size]
             logger.info(f"Upserting batch {i//batch_size + 1}/{(len(documents)-1)//batch_size + 1}...")
-            await self.vectorstore.aadd_documents(batch, namespace=namespace)
+            await self.vectorstore.aadd_documents(batch, namespace=ns)
             if i + batch_size < len(documents):
                 await asyncio.sleep(3)  # Respect free tier rate limits
                 
@@ -75,14 +82,16 @@ class VectorStoreService:
     async def asearch(self, query: str, top_k: int = None, namespace: str = None) -> List[Document]:
         """Async semantic search returning the most relevant Document chunks."""
         top_k = top_k or self.settings.retrieval_top_k
-        logger.info(f"Searching vector store for query: '{query}' (top_k={top_k})")
-        results = await self.vectorstore.asimilarity_search(query, k=top_k, namespace=namespace)
+        ns = namespace or "default"
+        logger.info(f"Searching vector store for query: '{query}' (top_k={top_k}, namespace={ns})")
+        results = await self.vectorstore.asimilarity_search(query, k=top_k, namespace=ns)
         return results
 
     async def aget_unique_files(self, namespace: str = None) -> List[str]:
         """Hack to retrieve unique file paths from the vectorstore for the UI picker."""
         # Query with a dummy space to pull a large sample of chunks and extract paths
-        results = await self.vectorstore.asimilarity_search(" ", k=1000, namespace=namespace)
+        ns = namespace or "default"
+        results = await self.vectorstore.asimilarity_search(" ", k=1000, namespace=ns)
         paths = set()
         for doc in results:
             if "path" in doc.metadata:
@@ -91,11 +100,16 @@ class VectorStoreService:
 
 
 # Process-wide singleton
-_vectorstore_service = None
+_vectorstore_service: VectorStore | None = None
 
-def get_vectorstore_service(pc_client: Pinecone = None) -> VectorStoreService:
-    """Returns a cached instance of the VectorStoreService."""
+def get_vectorstore_service(pc_client: Pinecone | None = None) -> VectorStore:
+    """Returns a cached instance of the VectorStore (Pinecone or Chroma)."""
     global _vectorstore_service
     if _vectorstore_service is None:
-        _vectorstore_service = VectorStoreService(pc_client)
+        settings = get_settings()
+        if settings.is_local:
+            from app.services.vectorstore_chroma import ChromaVectorStoreService
+            _vectorstore_service = ChromaVectorStoreService()
+        else:
+            _vectorstore_service = PineconeVectorStoreService(pc_client)
     return _vectorstore_service

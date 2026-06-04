@@ -67,12 +67,18 @@ async def stream_graph(request: Request, payload: GraphRunRequest):
                 # update is a dict: {node_name: delta_state}
                 node_name, delta = next(iter(update.items()))
                 
-                # Merge the delta to keep our local final_state up to date
-                # For messages we just append, for others we overwrite
+                # Merge the delta to keep our local final_state up to date.
+                # messages and token_consumption use operator.add reducers in the
+                # graph state, so we must accumulate them here too rather than
+                # overwrite — otherwise the run total reflects only the last node.
                 if "messages" in delta:
                     final_state["messages"].extend(delta["messages"])
                 for k, v in delta.items():
-                    if k != "messages":
+                    if k == "messages":
+                        continue
+                    if k == "token_consumption":
+                        final_state[k] = final_state.get(k, 0) + v
+                    else:
                         final_state[k] = v
                 
                 event = GraphStreamEvent.from_delta(run_id, node_name, delta)
@@ -89,8 +95,10 @@ async def stream_graph(request: Request, payload: GraphRunRequest):
                     "execution_exit_code": final_state.get("execution_exit_code", -1),
                     "retry_count": final_state.get("retry_count", 0),
                     "security_clearance": final_state.get("security_clearance", False),
+                    "original_code": final_state.get("original_code", ""),
                     "proposed_patch": final_state.get("proposed_patch", ""),
                     "token_consumption": final_state.get("token_consumption", 0),
+                    "latency_ms": elapsed_ms,
                 }
             )
             yield {"event": "complete", "data": complete_event.model_dump_json()}

@@ -1,3 +1,4 @@
+import os
 import logging
 from pydantic import BaseModel, Field
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -6,6 +7,38 @@ from app.core.schemas import AgentState
 from app.services.llm import get_chat_model
 
 logger = logging.getLogger("nexuscore.nodes.modification")
+
+
+def _read_original_code(project_path: str, target_file: str) -> str:
+    """Best-effort read of the target file's current contents from the workspace.
+
+    Used to populate ``original_code`` so the dashboard can render a real
+    before/after diff. Mirrors the path-resolution that ``sandbox_node`` uses on
+    deploy: try the direct path, then fall back to walking the tree by basename.
+    Returns "" if the file can't be located (e.g. AUTO_DETECT of a new file).
+    """
+    if not project_path or not target_file:
+        return ""
+
+    rel_target = (
+        os.path.relpath(target_file, project_path)
+        if os.path.isabs(target_file)
+        else target_file
+    )
+    candidate = os.path.join(project_path, rel_target)
+
+    if not os.path.exists(candidate):
+        basename = os.path.basename(rel_target)
+        for root, _dirs, files in os.walk(project_path):
+            if basename in files:
+                candidate = os.path.join(root, basename)
+                break
+
+    try:
+        with open(candidate, "r", encoding="utf-8") as f:
+            return f.read()
+    except Exception:
+        return ""
 
 class PatchProposal(BaseModel):
     reasoning: str = Field(description="Explanation of what caused the bug and how the patch fixes it.")
@@ -35,7 +68,7 @@ async def modification_node(state: AgentState) -> dict:
             
     # Inject previous execution failure if we are in a retry loop
     if state.get("execution_exit_code", -1) not in (-1, 0):
-        error_msg = f"PREVIOUS ATTEMPT FAILED with stderr:\n{state.get('execution_stderr')}\n\nPlease analyze the error and provide a corrected Python script."
+        error_msg = f"PREVIOUS ATTEMPT FAILED with stderr:\n{state.get('execution_stderr')}\n\nPlease analyze the error and provide a corrected version of the complete file (in its original language)."
         langchain_messages.append(HumanMessage(content=error_msg))
         
     from app.core.config import get_settings
@@ -74,6 +107,7 @@ if __name__ == "__main__":
         return {
             "proposed_patch": mock_patch,
             "current_target_file": "buggy_server.py",
+            "original_code": _read_original_code(state.get("project_path", ""), "buggy_server.py"),
             "messages": [assistant_message],
             "token_consumption": 0,
         }
@@ -98,9 +132,17 @@ if __name__ == "__main__":
             "content": f"Proposed Fix for {response.target_file}: {response.reasoning}\n\nCode:\n{response.code}"
         }
 
+        # Capture the pre-patch contents so the UI can show a real diff. Only do
+        # this on the first attempt — on retries the original is already in state
+        # and the on-disk file is unchanged (deploy only happens on success).
+        original_code = state.get("original_code", "") or _read_original_code(
+            state.get("project_path", ""), response.target_file
+        )
+
         return {
             "proposed_patch": response.code,
             "current_target_file": response.target_file,
+            "original_code": original_code,
             "messages": [assistant_message],
             "token_consumption": tokens_used,
         }

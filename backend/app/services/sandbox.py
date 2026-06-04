@@ -138,11 +138,18 @@ def _run_docker_sandbox(
         logger.error(f"Failed to connect to Docker daemon: {e}")
         return -1, "", f"Failed to connect to Docker daemon: {e}"
 
-    temp_dir = tempfile.mkdtemp(prefix="nexus_sandbox_")
     mounts = {}
     container_cmd = []
     working_dir = "/app"
     container = None
+
+    if settings.is_local:
+        import uuid
+        unique_id = uuid.uuid4().hex[:8]
+        temp_dir = f"/sandbox/nexus_sandbox_{unique_id}"
+        os.makedirs(temp_dir, exist_ok=True)
+    else:
+        temp_dir = tempfile.mkdtemp(prefix="nexus_sandbox_")
 
     try:
         if project_path and os.path.exists(project_path):
@@ -171,8 +178,12 @@ def _run_docker_sandbox(
                 with open(target_dest, "w", encoding="utf-8") as f:
                     f.write(code)
 
-            mounts = {temp_dir: {"bind": "/app/workspace", "mode": "rw"}}
-            working_dir = "/app/workspace"
+            if settings.is_local:
+                mounts = {"sandbox_workspaces": {"bind": "/sandbox", "mode": "rw"}}
+                working_dir = temp_dir
+            else:
+                mounts = {temp_dir: {"bind": "/app/workspace", "mode": "rw"}}
+                working_dir = "/app/workspace"
             
             lang_env = _get_language_env(target_file)
             image_to_use = lang_env["image"]
@@ -196,8 +207,13 @@ def _run_docker_sandbox(
             with open(temp_path, "w", encoding="utf-8") as f:
                 f.write(code)
                 
-            mounts = {temp_path: {"bind": f"/app/{filename}", "mode": "ro"}}
-            run_cmd = lang_env["cmd"].format(file=f"/app/{filename}")
+            if settings.is_local:
+                mounts = {"sandbox_workspaces": {"bind": "/sandbox", "mode": "ro"}}
+                run_cmd = f"cd {temp_dir} && " + lang_env["cmd"].format(file=filename)
+            else:
+                mounts = {temp_path: {"bind": f"/app/{filename}", "mode": "ro"}}
+                run_cmd = lang_env["cmd"].format(file=f"/app/{filename}")
+                
             container_cmd = ["/bin/sh", "-c", run_cmd]
 
         container = client.containers.run(

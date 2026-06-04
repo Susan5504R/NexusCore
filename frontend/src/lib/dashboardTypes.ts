@@ -8,10 +8,10 @@ export type TelemetryPoint = {
 };
 
 export type ScorecardData = {
-  faithfulness: number;
-  contextRecall: number;
-  tokenCost: number;
-  latency: string;
+  tokensUsed: number;
+  latencyMs: number;
+  retryCount: number;
+  outcome: "success" | "blocked" | "failed";
 };
 
 export type IncidentData = {
@@ -19,4 +19,21 @@ export type IncidentData = {
   proposedPatch: string;
   securityPassed: boolean;
   regexPassed: boolean;
+};
+
+export type HealthStatus = {
+  status: string;
+  dependencies: Record<string, string>;
+};
+
+export type LedgerEntry = {
+  id?: string | null;
+  timestamp?: string | null;
+  event_source: string;
+  agent_action?: string | null;
+  execution_payload?: string | null;
+  execution_status?: string | null;
+  token_consumption: number;
+  compute_latency_ms: number;
+  ragas_fidelity_score?: number | null;
 };

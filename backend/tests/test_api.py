@@ -46,6 +46,22 @@ def test_graph_run_stream_endpoint(client):
     assert "evaluation_node" in text_output
 
 
+def test_ledger_logs_endpoint(client):
+    response = client.get(
+        "/api/v1/ledger/logs", headers={"Authorization": "Bearer nexus-dev-key"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert data[0]["execution_status"] == "success"
+    assert data[0]["token_consumption"] == 42
+
+
+def test_ledger_logs_requires_auth(client):
+    response = client.get("/api/v1/ledger/logs")
+    assert response.status_code == 401
+
+
 def test_anomaly_trigger(client):
     import hmac
     import hashlib

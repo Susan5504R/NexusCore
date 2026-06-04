@@ -47,3 +47,16 @@ npm run dev
 ```
 
 Visit `http://localhost:3000` to access the real-time SRE Dashboard.
+
+## Deployment Options
+
+| Mode | Frontend URL | Backend URL | Key Requirements | Onboarding |
+|------|--------------|------------|------------------|------------|
+| **Cloud‑Managed SaaS** | https://nexuscore-dashboard.vercel.app | https://nexuscore-api.onrender.com | Gemini, Pinecone, Supabase, OpenRouter | `curl https://nexuscore-onrender.com/daemon.sh | python - --api-key <YOUR_nx_core_KEY>` |
+| **Self‑Hosted / On‑Premise** | http://localhost:3000 (after `docker‑compose up`) | http://localhost:8000 | Gemini, OpenRouter (Pinecone optional) | `git clone <repo> && cp .env.example .env && docker‑compose up -d` |
+
+**How it works**
+- **Cloud‑Managed** runs the FastAPI backend on Render and the Next.js UI on Vercel. The daemon (`telemetry.py`) posts metrics to `/api/v1/telemetry/ingest` using the SaaS API key.
+- **Self‑Hosted** runs the entire stack locally via Docker Compose. The backend talks to a local Chroma vector store and uses the host Docker daemon for sandboxed execution.
+
+> Choose the mode that fits your security and operational needs. The rest of the codebase is shared; only the vector‑store provider and deployment scripts differ.

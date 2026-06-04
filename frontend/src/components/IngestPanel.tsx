@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { API_BASE_URL } from "../lib/config";
+import { fetchSystemMode } from "../lib/systemClient";
 import { Loader2 } from "lucide-react";
 
 const LOADING_TIPS = [
@@ -15,9 +16,11 @@ const LOADING_TIPS = [
 ];
 
 export function IngestPanel() {
-  const [activeTab, setActiveTab] = useState<"github" | "zip">("github");
+  const [activeTab, setActiveTab] = useState<"github" | "zip" | "local">("github");
   const [githubUrl, setGithubUrl] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [localPath, setLocalPath] = useState("");
+  const [features, setFeatures] = useState<{ local_ingest?: boolean, api_keys?: boolean }>({});
   const [namespace, setNamespace] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [result, setResult] = useState<{ files: number; chunks: number; time: number } | null>(null);
@@ -33,6 +36,12 @@ export function IngestPanel() {
     }
     return () => clearInterval(interval);
   }, [status]);
+
+  useEffect(() => {
+    fetchSystemMode()
+      .then(data => setFeatures(data.features || {}))
+      .catch(err => console.error("Failed to fetch system mode", err));
+  }, []);
 
   const handleIngest = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,6 +69,13 @@ export function IngestPanel() {
           headers: { "Authorization": "Bearer nexus-dev-key" },
           body: formData,
         });
+      } else if (activeTab === "local") {
+        if (!localPath.trim()) throw new Error("Local path required");
+        response = await fetch(`${API_BASE_URL}/api/v1/ingest`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer nexus-dev-key" },
+          body: JSON.stringify({ directory: localPath.trim(), namespace: namespace.trim() || null }),
+        });
       }
 
       if (!response || !response.ok) {
@@ -84,7 +100,7 @@ export function IngestPanel() {
       </div>
 
       <div className="flex gap-2 border-b border-surface pb-2">
-        {(["github", "zip"] as const).map(tab => (
+        {(["github", "zip", ...(features.local_ingest ? ["local"] as const : [])] as const).map(tab => (
           <button
             key={tab}
             type="button"
@@ -93,7 +109,7 @@ export function IngestPanel() {
               activeTab === tab ? "bg-primary text-surface" : "text-text-muted hover:text-text-main hover:bg-surface"
             }`}
           >
-            {tab === "github" ? "GitHub URL" : "ZIP Upload"}
+            {tab === "github" ? "GitHub URL" : tab === "zip" ? "ZIP Upload" : "Local Path"}
           </button>
         ))}
       </div>
@@ -126,6 +142,20 @@ export function IngestPanel() {
           </div>
         )}
 
+        {activeTab === "local" && (
+          <div>
+            <label className="block text-xs text-text-muted mb-1 font-medium">Local Absolute Path</label>
+            <input
+              type="text"
+              value={localPath}
+              onChange={(e) => setLocalPath(e.target.value)}
+              placeholder="/sandbox/..."
+              className="w-full bg-base border border-surface rounded-lg px-3 py-2 text-sm text-text-main focus:outline-none focus:border-primary transition-colors placeholder:text-text-muted/50"
+              required={activeTab === "local"}
+            />
+          </div>
+        )}
+
         <div>
           <label className="block text-xs text-text-muted mb-1 font-medium">Namespace (Optional)</label>
           <input
@@ -147,7 +177,7 @@ export function IngestPanel() {
         ) : (
           <button
             type="submit"
-            disabled={(activeTab === "github" && !githubUrl) || (activeTab === "zip" && !file)}
+            disabled={(activeTab === "github" && !githubUrl) || (activeTab === "zip" && !file) || (activeTab === "local" && !localPath)}
             className="w-full bg-surface border border-primary/30 hover:border-primary text-text-main py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/10"
           >
             Run Ingestion

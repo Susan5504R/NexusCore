@@ -10,43 +10,55 @@ import { RunForm } from "../components/RunForm";
 import { TelemetryChart } from "../components/TelemetryChart";
 import { SreScorecard } from "../components/SreScorecard";
 import { IncidentPanel } from "../components/IncidentPanel";
-import { API_BASE_URL } from "../lib/config";
+import { ContextPanel } from "../components/ContextPanel";
+import { HealthStrip } from "../components/HealthStrip";
+import { LedgerHistory } from "../components/LedgerHistory";
 import type { IncidentData, ScorecardData, SystemMode, TelemetryPoint } from "../lib/dashboardTypes";
 
 export default function Dashboard() {
   const { run, isRunning, activeNode, logs, status, finalState } = useGraphStream();
   const [systemMode, setSystemMode] = useState<SystemMode>("MANUAL");
   const [telemetryData, setTelemetryData] = useState<TelemetryPoint[]>([]);
-  const [scorecardMetrics, setScorecardMetrics] = useState<ScorecardData | null>(null);
-  const [activeIncident, setActiveIncident] = useState<IncidentData | null>(null);
+  const [features, setFeatures] = useState<{ local_ingest?: boolean, api_keys?: boolean }>({});
 
   // Apply default theme to HTML tag
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", "palette1");
+    import("../lib/systemClient").then(({ fetchSystemMode }) => {
+      fetchSystemMode()
+        .then(data => setFeatures(data.features || {}))
+        .catch(console.error);
+    });
   }, []);
 
   const handleRun = (targetFile: string, logsArray: string[], projectPath: string, reproCommand: string) => {
     run(targetFile, logsArray, projectPath, reproCommand);
   };
 
-  useEffect(() => {
-    if (!finalState?.proposed_patch) return;
+  // Scorecard and incident are pure functions of the completed run, so we derive
+  // them during render rather than mirroring finalState into extra state.
+  const cleared = Boolean(finalState?.security_clearance);
+  const scorecardMetrics: ScorecardData | null = finalState
+    ? {
+        tokensUsed: finalState.token_consumption ?? 0,
+        latencyMs: finalState.latency_ms ?? 0,
+        retryCount: finalState.retry_count ?? 0,
+        outcome: !cleared
+          ? "blocked"
+          : (finalState.execution_exit_code ?? -1) === 0
+          ? "success"
+          : "failed",
+      }
+    : null;
 
-    setActiveIncident({
-      originalCode: "// Original code unavailable in stream payload",
-      proposedPatch: finalState.proposed_patch,
-      securityPassed: Boolean(finalState.security_clearance),
-      regexPassed: Boolean(finalState.security_clearance),
-    });
-    
-    // Set scorecard metrics (mocking them if they aren't provided by the backend stream)
-    setScorecardMetrics({
-      faithfulness: 0.985,
-      contextRecall: 0.962,
-      tokenCost: 0.014,
-      latency: "2.4s"
-    });
-  }, [finalState]);
+  const activeIncident: IncidentData | null = finalState?.proposed_patch
+    ? {
+        originalCode: finalState.original_code ?? "",
+        proposedPatch: finalState.proposed_patch,
+        securityPassed: cleared,
+        regexPassed: cleared,
+      }
+    : null;
 
   const handleSimulateOutlier = async () => {
     // 1. Generate local mock telemetry showing the spike
@@ -95,6 +107,14 @@ export default function Dashboard() {
             </h1>
             <p className="text-text-main/90 font-medium mt-1">Autonomous Infrastructure Self-Healing</p>
           </div>
+          <div className="flex items-center gap-6">
+            {features.api_keys && (
+              <a href="/settings" className="text-sm font-semibold text-primary hover:underline">
+                Settings / API Keys
+              </a>
+            )}
+            <HealthStrip />
+          </div>
         </div>
 
         {/* Component A */}
@@ -126,6 +146,10 @@ export default function Dashboard() {
 
         {/* Bottom Row */}
         {activeIncident && <IncidentPanel incident={activeIncident} />}
+
+        <ContextPanel />
+
+        <LedgerHistory reloadKey={finalState} />
 
       </div>
     </main>

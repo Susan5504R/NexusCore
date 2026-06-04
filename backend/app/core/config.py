@@ -1,8 +1,8 @@
 """Central configuration for Nexus-Core.
 
 A single typed Settings object loads and validates every environment variable at
-startup. Required keys (Gemini, Pinecone) fail fast if missing; keys that later
-phases depend on (Supabase) are optional here and validated only when the
+startup. OpenRouter drives chat inference, Gemini stays optional for embeddings,
+and keys that later phases depend on (Supabase) are validated only when the
 feature that needs them is actually used.
 
 Every service in the project reads its configuration through `get_settings()`,
@@ -11,7 +11,7 @@ which returns one cached instance for the whole process.
 
 from functools import lru_cache
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -24,18 +24,42 @@ class Settings(BaseSettings):
     )
 
     # ── Required: inference + vector DB (Phase 1) ─────────────────────────
-    gemini_api_key: str = Field(..., description="Google AI Studio API key.")
-    pinecone_api_key: str = Field(..., description="Pinecone serverless API key.")
+    openrouter_api_key: str | None = Field(
+        default=None, description="OpenRouter API key for chat inference."
+    )
+    pinecone_api_key: str | None = Field(
+        default=None, description="Pinecone serverless API key."
+    )
+
+    # ── Deployment Mode Foundation (Phase 0) ──────────────────────────────
+    deployment_mode: str = "cloud"
+    chroma_host: str | None = None
+    chroma_port: int = 8000
+    chroma_collection_prefix: str = "nexus_"
+
+    @property
+    def is_cloud(self) -> bool:
+        return self.deployment_mode == "cloud"
+
+    @property
+    def is_local(self) -> bool:
+        return self.deployment_mode == "local"
 
     # ── Optional until their phase comes online ───────────────────────────
+    gemini_api_key: str | None = Field(
+        default=None, description="Google AI Studio API key for Gemini embeddings."
+    )
     supabase_db_url: str | None = Field(
         default=None, description="Postgres connection URL for the ledger (Phase 0.4)."
     )
 
     # ── Model selection ───────────────────────────────────────────────────
-    # The security arbiter (Phase 3.4) runs on the same Gemini model at temperature
+    # The security arbiter (Phase 3.4) runs on the same OpenRouter model at
     # 0 for deterministic, zero-creativity safety assessment — see services/llm.py.
-    gemini_chat_model: str = "gemini-3.5-flash"
+    openrouter_chat_model: str = "meta-llama/llama-3-8b-instruct:free"
+    openrouter_referer: str | None = None
+    openrouter_title: str = "Nexus-Core SRE"
+    gemini_chat_model: str = "gemini-2.5-flash"
     gemini_embedding_model: str = "models/gemini-embedding-001"
     embedding_dimension: int = 3072
 
@@ -82,12 +106,38 @@ class Settings(BaseSettings):
     nexus_api_key: str = "nexus-dev-key"
     nexus_webhook_secret: str = "nexus-dev-secret"
 
-    @field_validator("gemini_api_key", "pinecone_api_key")
+    @field_validator("openrouter_api_key", "gemini_api_key", mode="before")
     @classmethod
-    def _reject_blank(cls, value: str, info) -> str:
-        if not value or not value.strip():
-            raise ValueError(f"{info.field_name} must not be empty")
-        return value.strip()
+    def _normalize_optional_keys(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        value = value.strip()
+        return value or None
+
+    @field_validator("deployment_mode", mode="before")
+    @classmethod
+    def _normalize_mode(cls, value: str) -> str:
+        v = value.strip().lower()
+        if v not in ("cloud", "local"):
+            raise ValueError("deployment_mode must be 'cloud' or 'local'")
+        return v
+
+    @field_validator("pinecone_api_key")
+    @classmethod
+    def _reject_blank(cls, value: str | None, info) -> str | None:
+        if value is not None and not value.strip():
+            raise ValueError(f"{info.field_name} must not be empty if provided")
+        return value.strip() if value else None
+
+    @model_validator(mode="after")
+    def _validate_deployment_mode_requirements(self) -> "Settings":
+        if self.deployment_mode == "cloud":
+            if not self.pinecone_api_key:
+                raise ValueError("pinecone_api_key is required when deployment_mode is 'cloud'")
+        elif self.deployment_mode == "local":
+            if not self.chroma_host:
+                raise ValueError("chroma_host is required when deployment_mode is 'local'")
+        return self
 
 
 @lru_cache
