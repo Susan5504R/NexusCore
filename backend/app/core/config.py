@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = Field(
         default=None, description="Anthropic API key for Claude inference."
     )
+    openai_api_key: str | None = Field(
+        default=None, description="OpenAI API key for high-speed embeddings."
+    )
     supabase_db_url: str | None = Field(
         default=None, description="Postgres connection URL for the ledger (Phase 0.4)."
     )
@@ -65,7 +68,13 @@ class Settings(BaseSettings):
     gemini_chat_model: str = "gemini-2.5-flash"
     anthropic_chat_model: str = "claude-3-5-sonnet-20241022"
     gemini_embedding_model: str = "models/gemini-embedding-001"
-    embedding_dimension: int = 3072
+    openai_embedding_model: str = "text-embedding-3-small"
+    
+    @property
+    def embedding_dimension(self) -> int:
+        if self.openai_api_key:
+            return 1536
+        return 3072
 
     # ── Pinecone index (auto-created on startup if absent) ────────────────
     pinecone_index: str = "nexus-core"
