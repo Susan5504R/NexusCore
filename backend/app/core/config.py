@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     gemini_api_key: str | None = Field(
         default=None, description="Google AI Studio API key for Gemini embeddings."
     )
+    anthropic_api_key: str | None = Field(
+        default=None, description="Anthropic API key for Claude inference."
+    )
     supabase_db_url: str | None = Field(
         default=None, description="Postgres connection URL for the ledger (Phase 0.4)."
     )
@@ -60,6 +63,7 @@ class Settings(BaseSettings):
     openrouter_referer: str | None = None
     openrouter_title: str = "Nexus-Core SRE"
     gemini_chat_model: str = "gemini-2.5-flash"
+    anthropic_chat_model: str = "claude-3-5-sonnet-20241022"
     gemini_embedding_model: str = "models/gemini-embedding-001"
     embedding_dimension: int = 3072
 
@@ -116,7 +120,7 @@ class Settings(BaseSettings):
     nexus_api_key: str = "nexus-dev-key"
     nexus_webhook_secret: str = "nexus-dev-secret"
 
-    @field_validator("openrouter_api_key", "gemini_api_key", mode="before")
+    @field_validator("openrouter_api_key", "gemini_api_key", "anthropic_api_key", mode="before")
     @classmethod
     def _normalize_optional_keys(cls, value: str | None) -> str | None:
         if value is None:
