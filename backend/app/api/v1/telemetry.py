@@ -1,4 +1,5 @@
 import logging
+import uuid
 from fastapi import APIRouter, Request, BackgroundTasks, Depends
 from app.core.schemas import TelemetryIngestPayload
 from app.core.schemas import GraphRunRequest
