@@ -34,6 +34,9 @@ install:
 	@.venv$(if $(OS),\Scripts\,/bin/)/python -m pip install --upgrade pip
 	# Prefer binary wheels; if a wheel is unavailable pip will skip the source build
 	@.venv$(if $(OS),\Scripts\,/bin/)/python -m pip install --prefer-binary -r backend/requirements.txt
+	# langchain-chroma is installed without its deps so it does not drag in the full
+	# `chromadb` (and chroma-hnswlib's C++ build). Its real deps come from the file above.
+	@.venv$(if $(OS),\Scripts\,/bin/)/python -m pip install --prefer-binary --no-deps -r backend/requirements-nodeps.txt
 	@.venv$(if $(OS),\Scripts\,/bin/)/python -m pip install --prefer-binary -r backend/requirements-dev.txt
 	# Install Node dependencies for the frontend
 	@cd frontend && npm ci && cd ..
