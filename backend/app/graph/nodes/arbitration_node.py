@@ -37,8 +37,7 @@ async def arbitration_node(state: AgentState) -> dict:
         }
         
     # 2. Heuristic dynamic analysis (LLM Arbitration)
-    # include_raw=True preserves the AIMessage so we can extract usage_metadata.total_tokens.
-    security_model = get_security_model().with_structured_output(SecurityDecision, include_raw=True)
+    security_model = get_security_model().with_structured_output(SecurityDecision)
     
     target_file = state.get("current_target_file", "")
     system_instruction = "You are a strict DevSecOps AI. Analyze source code in any language for destructive operations."
@@ -54,18 +53,12 @@ async def arbitration_node(state: AgentState) -> dict:
     """
     
     try:
-        result = await security_model.ainvoke([
+        decision: SecurityDecision = await security_model.ainvoke([
             SystemMessage(content=system_instruction),
             HumanMessage(content=prompt)
         ])
-        decision: SecurityDecision = result["parsed"]
-        raw_message = result.get("raw")
 
         tokens_used = 0
-        if raw_message is not None:
-            meta = getattr(raw_message, "usage_metadata", None)
-            if meta is not None:
-                tokens_used = int(meta.get("total_tokens", 0))
 
         logger.info(
             f"Security decision: {'✅ SAFE' if decision.is_safe else '❌ UNSAFE'} "

@@ -29,6 +29,7 @@ def _create_anthropic_model() -> ChatAnthropic:
         model_name=settings.anthropic_chat_model,
         anthropic_api_key=settings.anthropic_api_key,
         temperature=0.0,
+        max_tokens=8192,
         max_retries=settings.max_retries,
     )
 

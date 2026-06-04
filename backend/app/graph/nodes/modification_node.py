@@ -53,7 +53,7 @@ async def modification_node(state: AgentState) -> dict:
     logger.info("--- CODE MODIFICATION NODE ---")
     
     chat_model = get_chat_model()
-    structured_llm = chat_model.with_structured_output(PatchProposal, include_raw=True)
+    structured_llm = chat_model.with_structured_output(PatchProposal)
     
     sys_content = "You are an autonomous polyglot SRE agent. Your goal is to review the crash logs and the provided codebase context, and rewrite the COMPLETE target file with a fix. Determine the programming language from the file extension. Return the FULL updated file content in the 'code' field and the exact relative path in 'target_file'. DO NOT return a standalone snippet or diffs, return the entire modified file so it can be overwritten safely."
     
@@ -113,17 +113,10 @@ if __name__ == "__main__":
         }
 
     try:
-        result = await structured_llm.ainvoke(langchain_messages)
-        response: PatchProposal = result["parsed"]
-        raw_message = result.get("raw")
-
-        # Extract real token count from the AIMessage usage_metadata.
-        # usage_metadata is None if the model config doesn't return it; default to 0.
+        response: PatchProposal = await structured_llm.ainvoke(langchain_messages)
+        
+        # Default token count since we removed include_raw
         tokens_used = 0
-        if raw_message is not None:
-            meta = getattr(raw_message, "usage_metadata", None)
-            if meta is not None:
-                tokens_used = int(meta.get("total_tokens", 0))
 
         logger.info(f"Generated patch (tokens={tokens_used}). Reasoning: {response.reasoning}")
 
