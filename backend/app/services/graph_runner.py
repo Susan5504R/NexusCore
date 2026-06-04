@@ -25,10 +25,15 @@ async def record_ledger_entry(app, target_file: str, final_state: AgentState, el
     if not clearance:
         status = "blocked_security"
         
+    patch = final_state.get("proposed_patch", "")
+    payload_str = f"Target: {target_file} | Retries: {retry_count}"
+    if patch:
+        payload_str += f"\n\n--- Proposed Patch ---\n{patch}"
+
     entry = OperationalLogEntry(
         event_source=event_source,
         agent_action="autonomous_repair",
-        execution_payload=f"Target: {target_file} | Retries: {retry_count}",
+        execution_payload=payload_str,
         execution_status=status,
         token_consumption=total_tokens,
         compute_latency_ms=elapsed_ms

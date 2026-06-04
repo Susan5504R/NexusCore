@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { fetchLedgerLogs } from "../lib/systemClient";
 import type { LedgerEntry } from "../lib/dashboardTypes";
@@ -34,6 +34,7 @@ export function LedgerHistory({ reloadKey }: LedgerHistoryProps) {
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
   // Manual refresh (button) — setState in an event handler is fine.
   const load = useCallback(async () => {
@@ -108,22 +109,36 @@ export function LedgerHistory({ reloadKey }: LedgerHistoryProps) {
             </thead>
             <tbody>
               {entries.map((e, i) => (
-                <tr key={e.id ?? i} className="border-b border-primary/5 last:border-0">
-                  <td className="py-2 pr-4 text-text-muted whitespace-nowrap">{formatTime(e.timestamp)}</td>
-                  <td className="py-2 pr-4 text-text-main whitespace-nowrap">{e.agent_action ?? "--"}</td>
-                  <td className="py-2 pr-4">
-                    <span className={`inline-block rounded-full border px-2 py-0.5 text-xs ${statusBadge(e.execution_status)}`}>
-                      {e.execution_status ?? "unknown"}
-                    </span>
-                  </td>
-                  <td className="py-2 pr-4 text-right font-mono text-text-main/80">
-                    {e.token_consumption.toLocaleString()}
-                  </td>
-                  <td className="py-2 pr-4 text-right font-mono text-text-main/80">{e.compute_latency_ms}ms</td>
-                  <td className="py-2 text-text-muted max-w-[280px] truncate" title={e.execution_payload ?? ""}>
-                    {e.execution_payload ?? "--"}
-                  </td>
-                </tr>
+                <React.Fragment key={e.id ?? i}>
+                  <tr 
+                    onClick={() => setExpandedIndex(expandedIndex === i ? null : i)}
+                    className="border-b border-primary/5 last:border-0 cursor-pointer hover:bg-primary/5 transition-colors"
+                  >
+                    <td className="py-2 pr-4 text-text-muted whitespace-nowrap">{formatTime(e.timestamp)}</td>
+                    <td className="py-2 pr-4 text-text-main whitespace-nowrap">{e.agent_action ?? "--"}</td>
+                    <td className="py-2 pr-4">
+                      <span className={`inline-block rounded-full border px-2 py-0.5 text-xs ${statusBadge(e.execution_status)}`}>
+                        {e.execution_status ?? "unknown"}
+                      </span>
+                    </td>
+                    <td className="py-2 pr-4 text-right font-mono text-text-main/80">
+                      {e.token_consumption.toLocaleString()}
+                    </td>
+                    <td className="py-2 pr-4 text-right font-mono text-text-main/80">{e.compute_latency_ms}ms</td>
+                    <td className="py-2 text-primary font-medium text-xs">
+                      {e.execution_payload?.includes("--- Proposed Patch ---") ? (expandedIndex === i ? "Hide Code ▲" : "View Code ▼") : ""}
+                    </td>
+                  </tr>
+                  {expandedIndex === i && e.execution_payload && e.execution_payload.includes("--- Proposed Patch ---") && (
+                    <tr className="bg-background/50 border-b border-primary/20">
+                      <td colSpan={6} className="p-4">
+                        <div className="text-xs font-mono text-text-main/80 bg-black/40 p-4 rounded-lg overflow-x-auto whitespace-pre-wrap border border-primary/10">
+                          {e.execution_payload}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               ))}
             </tbody>
           </table>
