@@ -156,7 +156,7 @@ export default function SettingsPage() {
                 &nbsp;&nbsp;-v /var/run/docker.sock:/var/run/docker.sock \<br/>
                 &nbsp;&nbsp;-v /tmp/nexus_workspaces:/sandbox \<br/>
                 &nbsp;&nbsp;-e NEXUS_API_KEY={<span className="text-warning">{newKey ? newKey : "YOUR_API_KEY"}</span>} \<br/>
-                &nbsp;&nbsp;-e NEXUS_CLOUD_URL=https://nexus-cloud.example.com \<br/>
+                &nbsp;&nbsp;-e NEXUS_CLOUD_URL=https://nexuscore-rdc1.onrender.com \<br/>
                 &nbsp;&nbsp;nexuscore/daemon:latest
               </div>
             </div>
