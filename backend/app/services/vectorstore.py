@@ -69,13 +69,13 @@ class PineconeVectorStoreService:
         logger.info(f"Upserting {len(documents)} documents to vector store '{self.index_name}' (namespace: {ns}) in batches...")
         
         import asyncio
-        batch_size = 20
+        batch_size = 5  # Reduced from 20 to heavily throttle for Gemini free tier tokens
         for i in range(0, len(documents), batch_size):
             batch = documents[i:i + batch_size]
             logger.info(f"Upserting batch {i//batch_size + 1}/{(len(documents)-1)//batch_size + 1}...")
             await self.vectorstore.aadd_documents(batch, namespace=ns)
             if i + batch_size < len(documents):
-                await asyncio.sleep(3)  # Respect free tier rate limits
+                await asyncio.sleep(6)  # Increased from 3s to 6s to avoid 429 Resource exhausted
                 
         logger.info("Upsert complete.")
 
