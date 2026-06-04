@@ -270,30 +270,35 @@ export default function OnboardingPage() {
               </div>
 
               <div className="space-y-4">
-                <h3 className="text-xl font-bold">1. Configure the Environment for the Cloud</h3>
-                <p className="text-text-main/80 text-sm">Open your <code>backend/.env</code> file and change the values to this:</p>
-                <pre className="bg-gray-900 text-blue-300 p-4 rounded-md overflow-x-auto shadow-inner border border-gray-700">
-                  <code>DEPLOYMENT_MODE=cloud{"\n"}SANDBOX_MODE=subprocess{"\n"}GEMINI_API_KEY=your_actual_gemini_api_key_here{"\n"}PINECONE_API_KEY=your_actual_pinecone_api_key_here</code>
-                </pre>
-                <p className="text-xs text-text-main/60 italic">(Note: You now need a Pinecone API key as well!)</p>
-              </div>
-
-              <div className="space-y-4">
-                <h3 className="text-xl font-bold">2. Start the Backend Server</h3>
-                <p className="text-text-main/80 text-sm">Open a PowerShell window, navigate to the project, and run:</p>
+                <h3 className="text-xl font-bold">1. Install Daemon Dependencies</h3>
+                <p className="text-text-main/80 text-sm">Open a PowerShell window and install the lightweight Python packages required by the daemon:</p>
                 <pre className="bg-gray-900 text-green-400 p-4 rounded-md overflow-x-auto shadow-inner border border-gray-700">
-                  <code>cd backend{"\n"}.\.venv\Scripts\activate{"\n"}uvicorn app.main:app --reload</code>
+                  <code>pip install psutil requests</code>
                 </pre>
-                <p className="text-xs text-text-main/60 italic">(Notice we did NOT run <code>make docker-up</code> this time! The database is in the cloud).</p>
               </div>
 
               <div className="space-y-4">
-                <h3 className="text-xl font-bold">3. Verify it Works locally!</h3>
+                <h3 className="text-xl font-bold">2. Download the Daemon Script</h3>
+                <p className="text-text-main/80 text-sm">Run this command to download the script to your computer:</p>
+                <pre className="bg-gray-900 text-green-400 p-4 rounded-md overflow-x-auto shadow-inner border border-gray-700">
+                  <code>Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Susan5504R/NexusCore/main/frontend/public/nexus_daemon.py" -OutFile "nexus_daemon.py"</code>
+                </pre>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-xl font-bold">3. Start Pushing Telemetry!</h3>
+                <p className="text-text-main/80 text-sm">Run the daemon with your newly generated API key. Use backticks (`) for multi-line commands in PowerShell:</p>
+                <pre className="bg-gray-900 text-blue-300 p-4 rounded-md overflow-x-auto shadow-inner border border-gray-700">
+                  <code>python nexus_daemon.py `{'\n'}  --api-key nx_core_YOUR_KEY_HERE `{'\n'}  --server-url https://nexuscore-rdc1.onrender.com</code>
+                </pre>
+              </div>
+
+              <div className="space-y-4">
+                <h3 className="text-xl font-bold">4. Verify it Works!</h3>
                 <ul className="list-decimal list-inside space-y-2 text-text-main/90 bg-background/50 p-4 rounded-lg border border-primary/10">
-                  <li>Open your browser and go to your local dashboard: <strong>http://localhost:3000</strong></li>
-                  <li>You should now see a status indicator saying <strong>"Running in Cloud‑Managed mode"</strong>.</li>
-                  <li><strong>Trigger the AI:</strong> Click on the <strong>"Simulate Spike"</strong> button.</li>
-                  <li><strong>Watch the Magic:</strong> Look at your backend terminal. This time, you will see it connect to your remote <strong>Pinecone</strong> index to grab context, generate the patch via Gemini, and test the patch using the <code>subprocess</code> Sandbox mode!</li>
+                  <li>Your terminal should say <strong>[OK] Telemetry sent</strong> every 5 seconds.</li>
+                  <li>Click <strong>Go to the SaaS Dashboard</strong> above.</li>
+                  <li>In the dashboard, you will see your active telemetry streaming in!</li>
                 </ul>
               </div>
 

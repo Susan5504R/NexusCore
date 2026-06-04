@@ -154,7 +154,7 @@ export default function SettingsPage() {
                 <div className="text-primary mb-2"># 1. Install lightweight dependencies</div>
                 pip install psutil requests<br/><br/>
                 <div className="text-primary mb-2"># 2. Download and run the daemon</div>
-                curl -sO https://raw.githubusercontent.com/Susan5504R/NexusCore/main/frontend/public/nexus_daemon.py<br/>
+                Invoke-WebRequest -Uri "https://raw.githubusercontent.com/Susan5504R/NexusCore/main/frontend/public/nexus_daemon.py" -OutFile "nexus_daemon.py"<br/>
                 python nexus_daemon.py \<br/>
                 &nbsp;&nbsp;--api-key {<span className="text-warning">{newKey ? newKey : "YOUR_API_KEY"}</span>} \<br/>
                 &nbsp;&nbsp;--server-url https://nexuscore-rdc1.onrender.com
