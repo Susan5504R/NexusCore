@@ -15,6 +15,7 @@ import { ContextPanel } from "../../components/ContextPanel";
 import { HealthStrip } from "../../components/HealthStrip";
 import { LedgerHistory } from "../../components/LedgerHistory";
 import { getStoredSaasKey } from "../../lib/authKey";
+import { API_BASE_URL, API_KEY } from "../../lib/config";
 import type { IncidentData, ScorecardData, SystemMode, TelemetryPoint } from "../../lib/dashboardTypes";
 
 export default function Dashboard() {
@@ -41,6 +42,42 @@ export default function Dashboard() {
         .catch(console.error);
     });
   }, [router]);
+
+  // Poll the ledger every 6s to pull real daemon telemetry into the chart.
+  useEffect(() => {
+    const authKey = getStoredSaasKey() || API_KEY;
+    const fetchTelemetry = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/v1/ledger/logs?limit=40`, {
+          headers: { Authorization: `Bearer ${authKey}` },
+        });
+        if (!res.ok) return;
+        const logs: Array<{ event_source: string; execution_payload: string; timestamp?: string }> = await res.json();
+        const points: TelemetryPoint[] = logs
+          .filter((l) => l.event_source === "daemon/telemetry" && l.execution_payload)
+          .map((l) => {
+            // payload format: "namespace=X cpu=Y mem=Z error_rate=W"
+            const extract = (key: string) => {
+              const m = l.execution_payload.match(new RegExp(`${key}=([\\d.]+)`));
+              return m ? parseFloat(m[1]) : 0;
+            };
+            const ts = l.timestamp
+              ? new Date(l.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+              : "";
+            const cpu = extract("cpu");
+            const errorRate = extract("error_rate");
+            return { timestamp: ts, cpu, errorRate, isAnomaly: cpu > 90 || errorRate > 0.1 };
+          })
+          .reverse(); // oldest first so chart flows left → right
+        if (points.length > 0) setTelemetryData(points);
+      } catch (_) {
+        // silent — chart just keeps last data
+      }
+    };
+    fetchTelemetry();
+    const id = setInterval(fetchTelemetry, 6000);
+    return () => clearInterval(id);
+  }, []);
 
   const handleRun = (targetFile: string, logsArray: string[], projectPath: string, reproCommand: string) => {
     run(targetFile, logsArray, projectPath, reproCommand);
