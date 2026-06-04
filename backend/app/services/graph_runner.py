@@ -67,8 +67,10 @@ async def execute_repair(
     except Exception as e:
         logger.error(f"Graph execution fatally failed: {e}", exc_info=True)
         raise
-        
+
     elapsed_ms = int((time.perf_counter() - start_time) * 1000)
     await record_ledger_entry(app, target_file, final_state, elapsed_ms, run_id, event_source)
-            
+
+    # Inject latency so the frontend scorecard can display execution time.
+    final_state["latency_ms"] = elapsed_ms
     return final_state

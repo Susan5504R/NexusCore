@@ -76,5 +76,11 @@ async def arbitration_node(state: AgentState) -> dict:
             "token_consumption": tokens_used,
         }
     except Exception as e:
-        logger.error(f"Security arbitration failed (failing closed): {e}")
-        return {"security_clearance": False}
+        # Static blocklist already passed — fail OPEN so the run isn't silently
+        # blocked every time the LLM has a quota/network error on the free tier.
+        # Log the full error so it's visible in Render logs.
+        logger.warning(
+            f"LLM security check failed ({type(e).__name__}: {e}). "
+            f"Static analysis already passed — granting clearance."
+        )
+        return {"security_clearance": True, "token_consumption": 0}
