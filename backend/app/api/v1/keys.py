@@ -36,6 +36,18 @@ async def generate_api_key(request: Request, payload: GenerateKeyRequest, auth: 
         logger.error(f"Failed to generate API key: {e}")
         raise HTTPException(status_code=500, detail="Failed to generate API key")
 
+@router.get("/verify", response_model=Dict[str, Any])
+@limiter.limit("30/minute")
+async def verify_key(request: Request, auth: AuthContext = Depends(verify_api_key)):
+    """
+    Verify the supplied API key is valid (and not revoked).
+
+    Used by the onboarding flow to gate access to the SaaS dashboard without a
+    login. A valid ``nx_core_`` key resolves to its tenant namespace; the legacy
+    admin/dev key resolves to ``admin``. An invalid key fails auth with 401.
+    """
+    return {"valid": True, "namespace": auth.namespace or "admin"}
+
 @router.get("", response_model=List[Dict[str, Any]])
 @limiter.limit("30/minute")
 async def list_api_keys(request: Request, auth: AuthContext = Depends(verify_api_key)):

@@ -84,7 +84,7 @@ export default function SettingsPage() {
             </h1>
             <p className="text-text-main/90 font-medium mt-1">Tenant API Keys & Onboarding</p>
           </div>
-          <a href="/" className="text-sm font-semibold text-primary hover:underline">
+          <a href="/dashboard" className="text-sm font-semibold text-primary hover:underline">
             &larr; Back to Dashboard
           </a>
         </div>

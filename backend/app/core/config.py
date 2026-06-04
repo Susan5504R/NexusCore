@@ -56,7 +56,7 @@ class Settings(BaseSettings):
     # ── Model selection ───────────────────────────────────────────────────
     # The security arbiter (Phase 3.4) runs on the same OpenRouter model at
     # 0 for deterministic, zero-creativity safety assessment — see services/llm.py.
-    openrouter_chat_model: str = "meta-llama/llama-3-8b-instruct:free"
+    openrouter_chat_model: str = "mistralai/mistral-7b-instruct:free"
     openrouter_referer: str | None = None
     openrouter_title: str = "Nexus-Core SRE"
     gemini_chat_model: str = "gemini-2.5-flash"
@@ -97,7 +97,13 @@ class Settings(BaseSettings):
     # ── Server ────────────────────────────────────────────────────────────
     api_host: str = "0.0.0.0"
     api_port: int = 8000
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: list[str] = [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:3002",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+    ]
     
     # ── Mock/Demo Mode (allows testing without API keys / quotas) ────────
     use_mock_llm: bool = False

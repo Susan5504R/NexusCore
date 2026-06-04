@@ -1,5 +1,6 @@
 import { GraphStreamEvent } from "./types";
 import { API_BASE_URL } from "./config";
+import { getAuthKey } from "./authKey";
 
 function parseEvent(lines: string[]): GraphStreamEvent | null {
   let dataStr = "";
@@ -24,7 +25,7 @@ export async function* streamGraphRun(targetFile: string, logs: string[], projec
     headers: {
       "Content-Type": "application/json",
       "Accept": "text/event-stream",
-      "Authorization": "Bearer nexus-dev-key"
+      "Authorization": `Bearer ${getAuthKey()}`
     },
     body: JSON.stringify({ 
       target_file: targetFile, 

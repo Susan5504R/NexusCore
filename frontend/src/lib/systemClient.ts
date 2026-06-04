@@ -1,4 +1,5 @@
-import { API_BASE_URL, API_KEY } from "./config";
+import { API_BASE_URL } from "./config";
+import { getAuthKey } from "./authKey";
 import type { HealthStatus, LedgerEntry } from "./dashboardTypes";
 
 export interface SystemModeResponse {
@@ -25,7 +26,7 @@ export async function fetchHealth(): Promise<HealthStatus> {
 /** Fetch the most recent operational-ledger entries (run history). */
 export async function fetchLedgerLogs(limit = 20): Promise<LedgerEntry[]> {
   const res = await fetch(`${API_BASE_URL}/api/v1/ledger/logs?limit=${limit}`, {
-    headers: { Authorization: `Bearer ${API_KEY}` },
+    headers: { Authorization: `Bearer ${getAuthKey()}` },
   });
   if (!res.ok) throw new Error(`Failed to load history: ${res.statusText}`);
   return res.json();

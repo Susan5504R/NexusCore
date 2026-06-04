@@ -1,4 +1,5 @@
-import { API_BASE_URL, API_KEY } from "./config";
+import { API_BASE_URL } from "./config";
+import { getAuthKey } from "./authKey";
 
 export interface ContextStreamEvent {
   event: "message" | "done" | "error";
@@ -46,7 +47,7 @@ export async function* streamContextQuery(
     headers: {
       "Content-Type": "application/json",
       Accept: "text/event-stream",
-      Authorization: `Bearer ${API_KEY}`,
+      Authorization: `Bearer ${getAuthKey()}`,
     },
     body: JSON.stringify({
       prompt,

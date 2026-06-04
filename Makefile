@@ -38,12 +38,12 @@ install:
 	# `chromadb` (and chroma-hnswlib's C++ build). Its real deps come from the file above.
 	@.venv$(if $(OS),\Scripts\,/bin/)/python -m pip install --prefer-binary --no-deps -r backend/requirements-nodeps.txt
 	@.venv$(if $(OS),\Scripts\,/bin/)/python -m pip install --prefer-binary -r backend/requirements-dev.txt
-	# Install Node dependencies for the frontend.
-	# Use `npm --prefix` instead of `cd frontend && ... && cd ..` so the recipe is a
-	# single command with no shell chaining — the old MSYS `sh` shipped with some
-	# MinGW `make` builds mishandles `&&` when launching npm.cmd ("Cannot open").
-	@npm --prefix frontend ci
-
+	@echo ""
+	@echo "==========================================================="
+	@echo "Backend dependencies installed successfully."
+	@echo "To install frontend dependencies, run manually:"
+	@echo "  cd frontend && npm ci"
+	@echo "==========================================================="
 
 # -------------------------------------------------------------------
 # Testing
