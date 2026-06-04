@@ -151,13 +151,13 @@ export default function SettingsPage() {
                 Provide this exact command to the tenant so they can run the local execution daemon in their own environment.
               </p>
               <div className="bg-base p-4 rounded-xl border border-surface text-xs font-mono text-text-muted break-all relative group">
-                <div className="text-primary mb-2"># Run the NexusCore Sandbox Daemon</div>
-                docker run -d --name nexus-daemon \<br/>
-                &nbsp;&nbsp;-v /var/run/docker.sock:/var/run/docker.sock \<br/>
-                &nbsp;&nbsp;-v /tmp/nexus_workspaces:/sandbox \<br/>
-                &nbsp;&nbsp;-e NEXUS_API_KEY={<span className="text-warning">{newKey ? newKey : "YOUR_API_KEY"}</span>} \<br/>
-                &nbsp;&nbsp;-e NEXUS_CLOUD_URL=https://nexuscore-rdc1.onrender.com \<br/>
-                &nbsp;&nbsp;nexuscore/daemon:latest
+                <div className="text-primary mb-2"># 1. Install lightweight dependencies</div>
+                pip install psutil requests<br/><br/>
+                <div className="text-primary mb-2"># 2. Download and run the daemon</div>
+                curl -sO https://raw.githubusercontent.com/Susan5504R/NexusCore/main/frontend/public/nexus_daemon.py<br/>
+                python nexus_daemon.py \<br/>
+                &nbsp;&nbsp;--api-key {<span className="text-warning">{newKey ? newKey : "YOUR_API_KEY"}</span>} \<br/>
+                &nbsp;&nbsp;--server-url https://nexuscore-rdc1.onrender.com
               </div>
             </div>
           </div>
