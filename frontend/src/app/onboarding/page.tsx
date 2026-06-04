@@ -293,6 +293,18 @@ export default function OnboardingPage() {
                 </pre>
               </div>
 
+              <div className="bg-gradient-to-br from-error/10 to-primary/5 p-6 rounded-2xl border border-error/30 space-y-4 shadow-sm mt-4">
+                <h3 className="text-xl font-bold flex items-center gap-2">🛡️ Proactive Auto-Healing (Optional)</h3>
+                <p className="text-text-main/80 text-sm">
+                  To test NexusCore&apos;s <strong>autonomous</strong> capabilities, use the <code>--watch</code> flag to wrap a "production" script. 
+                  The daemon acts as a supervisor: if your script crashes, the daemon catches the traceback, sends it to the cloud as an anomaly, 
+                  and NexusCore autonomously searches your codebase to find and patch the bug!
+                </p>
+                <pre className="bg-gray-900 text-blue-300 p-4 rounded-md overflow-x-auto shadow-inner border border-gray-700">
+                  <code>python nexus_daemon.py `{'\n'}  --api-key nx_core_YOUR_KEY_HERE `{'\n'}  --server-url https://nexuscore-rdc1.onrender.com `{'\n'}  --watch "python path/to/your/script.py"</code>
+                </pre>
+              </div>
+
               <div className="space-y-4">
                 <h3 className="text-xl font-bold">4. Verify it Works!</h3>
                 <ul className="list-decimal list-inside space-y-2 text-text-main/90 bg-background/50 p-4 rounded-lg border border-primary/10">

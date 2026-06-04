@@ -67,7 +67,7 @@ async def ingest_telemetry(
             background_tasks.add_task(
                 execute_repair,
                 app=request.app,
-                target_file="system_metrics",
+                target_file="AUTO_DETECT",
                 logs=payload.logs,
                 run_id=run_id,
                 event_source="daemon/telemetry",
