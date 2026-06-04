@@ -30,10 +30,14 @@ install:
 	@echo "Installing backend and frontend dependencies..."
 	# Create (or recreate) a virtual environment in the repo root
 	@python -m venv .venv
-	# Activate the venv and install Python dependencies
-	@. $(VENV_ACTIVATE) && pip install -r backend/requirements.txt && pip install -r backend/requirements-dev.txt
+	# Use the venv's python directly no need to source the activate script
+	@.venv$(if $(OS),\Scripts\,/bin/)/python -m pip install --upgrade pip
+	# Prefer binary wheels; if a wheel is unavailable pip will skip the source build
+	@.venv$(if $(OS),\Scripts\,/bin/)/python -m pip install --prefer-binary -r backend/requirements.txt
+	@.venv$(if $(OS),\Scripts\,/bin/)/python -m pip install --prefer-binary -r backend/requirements-dev.txt
 	# Install Node dependencies for the frontend
 	@cd frontend && npm ci && cd ..
+
 
 # -------------------------------------------------------------------
 # Testing
