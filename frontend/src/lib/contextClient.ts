@@ -57,7 +57,16 @@ export async function* streamContextQuery(
   });
 
   if (!response.ok) {
-    throw new Error(`Query failed: ${response.statusText}`);
+    let errorDetail = response.statusText;
+    try {
+      const errorJson = await response.json();
+      if (errorJson.detail) {
+        errorDetail = typeof errorJson.detail === 'string' ? errorJson.detail : JSON.stringify(errorJson.detail);
+      }
+    } catch {
+      // ignore JSON parse error
+    }
+    throw new Error(`Query failed: ${errorDetail || response.status}`);
   }
   if (!response.body) {
     throw new Error("No response body returned from server.");
