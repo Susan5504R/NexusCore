@@ -71,7 +71,7 @@ class Settings(BaseSettings):
     openrouter_chat_model: str = "mistralai/mistral-7b-instruct:free"
     openrouter_referer: str | None = None
     openrouter_title: str = "Nexus-Core SRE"
-    gemini_chat_model: str = "gemini-2.5-flash"
+    gemini_chat_model: str = "gemini-1.5-flash"
     anthropic_chat_model: str = "claude-3-5-sonnet-20241022"
     gemini_embedding_model: str = "models/gemini-embedding-001"
     openai_embedding_model: str = "text-embedding-3-small"
