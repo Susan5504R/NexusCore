@@ -75,8 +75,7 @@ if __name__ == "__main__":
             logger.info(f"Fallback extracted filename: {target_filename}")
             
             try:
-                from app.services.vectorstore import get_vectorstore_service
-                from app.core.config import get_settings
+                # Use global imports
                 vstore_service = get_vectorstore_service()
                 
                 # If running on cloud (Pinecone)

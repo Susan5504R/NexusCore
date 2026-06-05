@@ -144,4 +144,5 @@ if __name__ == "__main__":
         return {
             "execution_exit_code": -1,
             "execution_stderr": f"LLM generation failed: {e}",
+            "messages": [{"role": "system", "content": f"Modification generation failed: {e}"}]
         }
