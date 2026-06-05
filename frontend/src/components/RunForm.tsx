@@ -5,7 +5,7 @@ import { ShieldAlert, Info } from "lucide-react";
 import { API_BASE_URL } from "../lib/config";
 
 interface RunFormProps {
-  onRun: (targetFile: string, logs: string[], projectPath: string, reproCommand: string) => void;
+  onRun: (targetFile: string, logs: string[], projectPath: string, reproCommand: string, namespace?: string) => void;
   isRunning: boolean;
   systemMode: "MANUAL" | "PROACTIVE";
   onSystemModeChange: (mode: "MANUAL" | "PROACTIVE") => void;
@@ -62,7 +62,7 @@ export function RunForm({ onRun, isRunning, systemMode, onSystemModeChange, onSi
     const safeNamespace = namespace.trim() || "default";
     const resolvedProjectPath = `workspaces/${safeNamespace}/codebase`;
     
-    onRun(targetFile || "AUTO_DETECT", logsArray, resolvedProjectPath, reproCommand);
+    onRun(targetFile || "AUTO_DETECT", logsArray, resolvedProjectPath, reproCommand, safeNamespace);
   };
 
   const handleSimulate = async () => {

@@ -19,7 +19,7 @@ function parseEvent(lines: string[]): GraphStreamEvent | null {
   return null;
 }
 
-export async function* streamGraphRun(targetFile: string, logs: string[], projectPath: string, reproCommand: string): AsyncGenerator<GraphStreamEvent, void, unknown> {
+export async function* streamGraphRun(targetFile: string, logs: string[], projectPath: string, reproCommand: string, namespace: string = ""): AsyncGenerator<GraphStreamEvent, void, unknown> {
   const response = await fetch(`${API_BASE_URL}/api/v1/graph/run/stream`, {
     method: "POST",
     headers: {
@@ -31,7 +31,8 @@ export async function* streamGraphRun(targetFile: string, logs: string[], projec
       target_file: targetFile, 
       logs,
       project_path: projectPath,
-      reproduction_command: reproCommand
+      reproduction_command: reproCommand,
+      namespace: namespace || null
     })
   });
 

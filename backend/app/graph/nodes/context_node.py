@@ -47,7 +47,7 @@ if __name__ == "__main__":
     try:
         vectorstore = get_vectorstore_service()
         # Fetch top relevant chunks
-        docs = await vectorstore.asearch(query, top_k=3)
+        docs = await vectorstore.asearch(query, top_k=3, namespace=state.get("namespace"))
         
         context_blocks = []
         for doc in docs:

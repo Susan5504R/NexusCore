@@ -79,8 +79,8 @@ export default function Dashboard() {
     return () => clearInterval(id);
   }, []);
 
-  const handleRun = (targetFile: string, logsArray: string[], projectPath: string, reproCommand: string) => {
-    run(targetFile, logsArray, projectPath, reproCommand);
+  const handleRun = (targetFile: string, logsArray: string[], projectPath: string, reproCommand: string, namespace?: string) => {
+    run(targetFile, logsArray, projectPath, reproCommand, namespace);
   };
 
   // Scorecard and incident are pure functions of the completed run, so we derive

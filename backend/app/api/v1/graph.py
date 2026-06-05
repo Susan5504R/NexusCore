@@ -29,6 +29,7 @@ async def run_graph(request: Request, payload: GraphRunRequest):
             event_source="api/v1/graph/run",
             project_path=payload.project_path,
             reproduction_command=payload.reproduction_command,
+            namespace=payload.namespace,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -56,6 +57,7 @@ async def stream_graph(request: Request, payload: GraphRunRequest):
         discovered_logs=payload.logs,
         project_path=payload.project_path,
         reproduction_command=payload.reproduction_command,
+        namespace=payload.namespace,
     )
     
     async def event_generator():

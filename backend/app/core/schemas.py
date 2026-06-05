@@ -41,6 +41,7 @@ class AgentState(TypedDict):
     execution_stderr: str
     security_clearance: bool
     retry_count: int
+    namespace: Optional[str]
     telemetry_metrics: Dict[str, Any]
     # Accumulated LLM token spend across all nodes in this run.
     # Uses operator.add so each node returns a partial count and LangGraph
@@ -55,6 +56,7 @@ def new_agent_state(
     messages: Optional[List[Dict[str, str]]] = None,
     project_path: str = "",
     reproduction_command: str = "",
+    namespace: Optional[str] = None,
 ) -> AgentState:
     """Build a fully-initialized ``AgentState`` with safe defaults.
 
@@ -77,6 +79,7 @@ def new_agent_state(
         execution_stderr="",
         security_clearance=False,
         retry_count=0,
+        namespace=namespace,
         telemetry_metrics={},
         token_consumption=0,
     )
@@ -130,6 +133,7 @@ class GraphRunRequest(BaseModel):
     )
     project_path: str = Field(..., description="Absolute path to the user's project directory.")
     reproduction_command: str = Field(..., description="Command to reproduce the error (e.g., 'python main.py').")
+    namespace: Optional[str] = Field(default=None, description="Pinecone namespace to search.")
 
 
 class GraphRunResponse(BaseModel):
