@@ -8,7 +8,7 @@ import { getStoredSaasKey, setStoredSaasKey } from "../../lib/authKey";
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"common" | "local" | "cloud">("common");
+  const [activeTab, setActiveTab] = useState<"cloud" | "local">("cloud");
 
   // --- SaaS API-key flow (generate + verify gates the dashboard) ---
   const [namespace, setNamespace] = useState("");
@@ -88,33 +88,27 @@ export default function OnboardingPage() {
         {/* Navigation Tabs */}
         <div className="flex gap-4 border-b border-primary/20 pb-2">
           <button
-            onClick={() => setActiveTab("common")}
-            className={`px-4 py-2 font-bold rounded-t-lg transition-colors ${activeTab === "common" ? "bg-primary/20 text-primary border-b-2 border-primary" : "text-text-main/70 hover:text-primary hover:bg-primary/10"}`}
+            onClick={() => setActiveTab("cloud")}
+            className={`px-4 py-2 font-bold rounded-t-lg transition-colors ${activeTab === "cloud" ? "bg-primary/20 text-primary border-b-2 border-primary" : "text-text-main/70 hover:text-primary hover:bg-primary/10"}`}
           >
-            0. Common Setup
+            1. Cloud-Managed (SaaS)
           </button>
           <button
             onClick={() => setActiveTab("local")}
             className={`px-4 py-2 font-bold rounded-t-lg transition-colors ${activeTab === "local" ? "bg-primary/20 text-primary border-b-2 border-primary" : "text-text-main/70 hover:text-primary hover:bg-primary/10"}`}
           >
-            1. Self-Hosted (Local)
-          </button>
-          <button
-            onClick={() => setActiveTab("cloud")}
-            className={`px-4 py-2 font-bold rounded-t-lg transition-colors ${activeTab === "cloud" ? "bg-primary/20 text-primary border-b-2 border-primary" : "text-text-main/70 hover:text-primary hover:bg-primary/10"}`}
-          >
-            2. Cloud-Managed (SaaS)
+            2. Self-Hosted (Local)
           </button>
         </div>
 
         {/* Content Area */}
         <div className="bg-surface p-8 rounded-2xl shadow-lg border border-primary/20 space-y-6">
-          
-          {activeTab === "common" && (
+
+          {activeTab === "local" && (
             <div className="space-y-6 animate-in fade-in duration-300">
-              <h2 className="text-2xl font-bold text-primary">🛠️ Step 0: Common Setup (Do This First!)</h2>
-              <p className="text-text-main/80">No matter which mode you want to test, you first need to get the basic dependencies installed.</p>
-              
+              <h2 className="text-2xl font-bold text-primary">🚀 Testing Method 2: Self-Hosted / Local Mode</h2>
+              <p className="text-text-main/80">In this mode, everything runs on your machine. The vector database (Chroma) runs in Docker, and the system executes self-healing patches using your local Docker daemon.</p>
+
               <div className="bg-background/50 p-4 rounded-lg border border-primary/10">
                 <h3 className="text-lg font-semibold mb-2">Prerequisites</h3>
                 <ul className="list-disc list-inside space-y-1 text-text-main/90">
@@ -125,30 +119,21 @@ export default function OnboardingPage() {
               </div>
 
               <div className="space-y-4">
-                <h3 className="text-xl font-bold">1. Install Backend Dependencies</h3>
-                <p className="text-text-main/80 text-sm">Open a PowerShell terminal, navigate to the project folder, and run:</p>
+                <h3 className="text-xl font-bold">1. Clone the Repository</h3>
                 <pre className="bg-gray-900 text-green-400 p-4 rounded-md overflow-x-auto shadow-inner border border-gray-700">
-                  <code>make install</code>
+                  <code>git clone https://github.com/Susan5504R/NexusCore.git{"\n"}cd NexusCore</code>
                 </pre>
-                <p className="text-xs text-text-main/60 italic">(This will create a Python virtual environment and install everything the backend needs).</p>
               </div>
 
               <div className="space-y-4">
-                <h3 className="text-xl font-bold">2. Install Frontend Dependencies</h3>
+                <h3 className="text-xl font-bold">2. Install Dependencies</h3>
                 <pre className="bg-gray-900 text-green-400 p-4 rounded-md overflow-x-auto shadow-inner border border-gray-700">
-                  <code>cd frontend{"\n"}npm ci{"\n"}cd ..</code>
+                  <code>make install{"\n"}cd frontend{"\n"}npm ci{"\n"}cd ..</code>
                 </pre>
               </div>
-            </div>
-          )}
-
-          {activeTab === "local" && (
-            <div className="space-y-6 animate-in fade-in duration-300">
-              <h2 className="text-2xl font-bold text-primary">🚀 Testing Method 1: Self-Hosted / Local Mode</h2>
-              <p className="text-text-main/80">In this mode, everything runs on your machine. The vector database (Chroma) runs in Docker, and the system executes self-healing patches using your local Docker daemon.</p>
 
               <div className="space-y-4">
-                <h3 className="text-xl font-bold">1. Configure the Environment</h3>
+                <h3 className="text-xl font-bold">3. Configure the Environment</h3>
                 <pre className="bg-gray-900 text-green-400 p-4 rounded-md overflow-x-auto shadow-inner border border-gray-700">
                   <code>cp backend/.env.example backend/.env</code>
                 </pre>
@@ -159,14 +144,14 @@ export default function OnboardingPage() {
               </div>
 
               <div className="space-y-4">
-                <h3 className="text-xl font-bold">2. Start the Local Infrastructure (Docker)</h3>
+                <h3 className="text-xl font-bold">4. Start the Local Infrastructure (Docker)</h3>
                 <pre className="bg-gray-900 text-green-400 p-4 rounded-md overflow-x-auto shadow-inner border border-gray-700">
                   <code>make docker-up</code>
                 </pre>
               </div>
 
               <div className="space-y-4">
-                <h3 className="text-xl font-bold">3. Start the Backend Server</h3>
+                <h3 className="text-xl font-bold">5. Start the Backend Server</h3>
                 <p className="text-text-main/80 text-sm">Open a <strong>new</strong> PowerShell window, navigate to the project, and run:</p>
                 <pre className="bg-gray-900 text-green-400 p-4 rounded-md overflow-x-auto shadow-inner border border-gray-700">
                   <code>cd backend{"\n"}.\.venv\Scripts\activate{"\n"}uvicorn app.main:app --reload</code>
@@ -174,7 +159,7 @@ export default function OnboardingPage() {
               </div>
 
               <div className="space-y-4">
-                <h3 className="text-xl font-bold">4. Verify it Works!</h3>
+                <h3 className="text-xl font-bold">6. Verify it Works!</h3>
                 <ul className="list-decimal list-inside space-y-2 text-text-main/90 bg-background/50 p-4 rounded-lg border border-primary/10">
                   <li>Open your browser and go to: <strong>http://localhost:3000</strong></li>
                   <li>You should see a status indicator saying <strong>"Running in Self‑Hosted mode"</strong>.</li>
@@ -184,7 +169,7 @@ export default function OnboardingPage() {
               </div>
               
               <div className="space-y-4">
-                <h3 className="text-xl font-bold text-error">5. Clean Up</h3>
+                <h3 className="text-xl font-bold text-error">7. Clean Up</h3>
                 <p className="text-text-main/80 text-sm">When you are done testing local mode, press <code>Ctrl+C</code> in your backend and frontend terminals to stop them, then run:</p>
                 <pre className="bg-gray-900 text-red-400 p-4 rounded-md overflow-x-auto shadow-inner border border-gray-700">
                   <code>make docker-down</code>
