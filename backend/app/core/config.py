@@ -69,15 +69,22 @@ class Settings(BaseSettings):
     anthropic_chat_model: str = "claude-3-5-sonnet-20241022"
     gemini_embedding_model: str = "models/gemini-embedding-001"
     openai_embedding_model: str = "text-embedding-3-small"
+    use_local_embeddings: bool = False
     
     @property
     def embedding_dimension(self) -> int:
+        if self.use_local_embeddings:
+            return 384
         if self.openai_api_key:
             return 1536
         return 3072
 
     # ── Pinecone index (auto-created on startup if absent) ────────────────
-    pinecone_index: str = "nexus-core"
+    @property
+    def pinecone_index(self) -> str:
+        if self.use_local_embeddings:
+            return "nexus-core-local"
+        return "nexus-core"
     pinecone_cloud: str = "aws"
     pinecone_region: str = "us-east-1"
     pinecone_metric: str = "cosine"

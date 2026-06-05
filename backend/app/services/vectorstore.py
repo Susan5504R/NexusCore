@@ -69,8 +69,15 @@ class PineconeVectorStoreService:
         logger.info(f"Upserting {len(documents)} documents to vector store '{self.index_name}' (namespace: {ns}) in batches...")
         
         import asyncio
-        batch_size = 20 if self.settings.openai_api_key else 5
-        sleep_time = 1.5 if self.settings.openai_api_key else 6
+        if self.settings.use_local_embeddings:
+            batch_size = 100
+            sleep_time = 0
+        elif self.settings.openai_api_key:
+            batch_size = 20
+            sleep_time = 1.5
+        else:
+            batch_size = 5
+            sleep_time = 6
         
         for i in range(0, len(documents), batch_size):
             batch = documents[i:i + batch_size]

@@ -15,6 +15,11 @@ def get_embeddings() -> Any:
     """
     settings = get_settings()
     
+    if settings.use_local_embeddings:
+        from langchain_huggingface import HuggingFaceEmbeddings
+        logger.info("Using local HuggingFace embeddings (all-MiniLM-L6-v2)")
+        return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+
     if settings.openai_api_key:
         return OpenAIEmbeddings(
             model=settings.openai_embedding_model,
@@ -24,7 +29,7 @@ def get_embeddings() -> Any:
         )
 
     if not settings.gemini_api_key:
-        raise ValueError("Either OPENAI_API_KEY or GEMINI_API_KEY must be configured for embeddings")
+        raise ValueError("Either USE_LOCAL_EMBEDDINGS, OPENAI_API_KEY or GEMINI_API_KEY must be configured for embeddings")
 
     return GoogleGenerativeAIEmbeddings(
         model=settings.gemini_embedding_model,
