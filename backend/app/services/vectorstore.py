@@ -76,8 +76,10 @@ class PineconeVectorStoreService:
             batch_size = 20
             sleep_time = 1.5
         else:
-            batch_size = 5
-            sleep_time = 6
+            # Gemini Free Tier allows 15 RPM. By bundling 100 chunks into a single request
+            # with a 4.5s sleep, we safely process 1,300 chunks per minute without hitting the quota.
+            batch_size = 100
+            sleep_time = 4.5
         
         for i in range(0, len(documents), batch_size):
             batch = documents[i:i + batch_size]

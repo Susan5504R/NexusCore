@@ -8,14 +8,16 @@ from app.core.config import get_settings
 
 logger = logging.getLogger("nexuscore.llm")
 
-def _create_gemini_model() -> ChatGoogleGenerativeAI:
+def _create_gemini_model(api_key_override: str | None = None) -> ChatGoogleGenerativeAI:
     settings = get_settings()
-    if not settings.gemini_api_key:
+    key_to_use = api_key_override or settings.gemini_api_key
+    
+    if not key_to_use:
         raise ValueError("GEMINI_API_KEY is not configured")
 
     return ChatGoogleGenerativeAI(
         model=settings.gemini_chat_model,
-        google_api_key=settings.gemini_api_key,
+        google_api_key=key_to_use,
         temperature=0.0,
         max_retries=settings.max_retries,
     )
@@ -45,7 +47,7 @@ def get_chat_model() -> Any:
         return _create_anthropic_model()
     
     logger.info("Using Gemini for chat inference")
-    return _create_gemini_model()
+    return _create_gemini_model(api_key_override=settings.gemini_api_key_chat)
 
 def get_security_model() -> Any:
     """
@@ -58,4 +60,4 @@ def get_security_model() -> Any:
         return _create_anthropic_model()
         
     logger.info("Using Gemini for security arbitration")
-    return _create_gemini_model()
+    return _create_gemini_model(api_key_override=settings.gemini_api_key_security)

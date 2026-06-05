@@ -49,6 +49,12 @@ class Settings(BaseSettings):
     gemini_api_key: str | None = Field(
         default=None, description="Google AI Studio API key for Gemini embeddings."
     )
+    gemini_api_key_chat: str | None = Field(
+        default=None, description="Optional separate key for the main repair graph."
+    )
+    gemini_api_key_security: str | None = Field(
+        default=None, description="Optional separate key for the security arbiter."
+    )
     anthropic_api_key: str | None = Field(
         default=None, description="Anthropic API key for Claude inference."
     )
