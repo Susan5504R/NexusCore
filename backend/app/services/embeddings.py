@@ -16,9 +16,9 @@ def get_embeddings() -> Any:
     settings = get_settings()
     
     if settings.use_local_embeddings:
-        from langchain_huggingface import HuggingFaceEmbeddings
-        logger.info("Using local HuggingFace embeddings (all-MiniLM-L6-v2)")
-        return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+        from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
+        logger.info("Using local FastEmbed embeddings (all-MiniLM-L6-v2)")
+        return FastEmbedEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
     if settings.openai_api_key:
         return OpenAIEmbeddings(
