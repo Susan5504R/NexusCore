@@ -19,6 +19,8 @@ def get_embeddings() -> Any:
         return OpenAIEmbeddings(
             model=settings.openai_embedding_model,
             openai_api_key=settings.openai_api_key,
+            max_retries=settings.max_retries,
+            timeout=60.0
         )
 
     if not settings.gemini_api_key:
