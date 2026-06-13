@@ -189,11 +189,22 @@ def main():
 
             # Extract target file from crash traceback if available
             crashed_file = ""
+            source_code = ""
             if logs_to_send:
                 import re
                 file_matches = re.findall(r'File "([^"]+)"', "\n".join(logs_to_send))
                 if file_matches:
                     crashed_file = os.path.basename(file_matches[-1])
+                    if args.project_dir:
+                        # Try to read the file from the project directory
+                        for root, _, files in os.walk(args.project_dir):
+                            if crashed_file in files:
+                                try:
+                                    with open(os.path.join(root, crashed_file), 'r', encoding='utf-8') as f:
+                                        source_code = f.read()
+                                    break
+                                except Exception:
+                                    pass
 
             payload = {
                 "cpu": 98.5 if logs_to_send else cpu,
@@ -202,6 +213,7 @@ def main():
                 "logs": logs_to_send,
                 "reproduction_command": (args.watch or "") if logs_to_send else "",
                 "target_file": crashed_file,
+                "source_code": source_code,
             }
 
             # 3. Send Telemetry

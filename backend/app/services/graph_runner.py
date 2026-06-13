@@ -63,7 +63,8 @@ async def execute_repair(
     event_source: str = "api/v1/graph/run",
     project_path: str = "",
     reproduction_command: str = "",
-    namespace: str = None
+    namespace: str = None,
+    source_code: str = ""
 ) -> AgentState:
     """
     Executes the SRE orchestrator LangGraph.
@@ -72,7 +73,6 @@ async def execute_repair(
     
     logger.info(f"Starting Graph Run {run_id} for target file: {target_file}")
     
-    # 1. Initialize State
     initial_state = new_agent_state(
         current_target_file=target_file,
         discovered_logs=logs,
@@ -80,7 +80,8 @@ async def execute_repair(
         reproduction_command=reproduction_command,
         namespace=namespace,
         run_id=run_id,
-        patch_store=getattr(app.state, "patch_store", None)
+        patch_store=getattr(app.state, "patch_store", None),
+        source_code=source_code
     )
     try:
         final_state = await sre_orchestrator.ainvoke(initial_state)

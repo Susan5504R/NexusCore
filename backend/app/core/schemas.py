@@ -45,6 +45,7 @@ class AgentState(TypedDict):
     namespace: Optional[str]
     run_id: str
     telemetry_metrics: Dict[str, Any]
+    source_code: str
     # Accumulated LLM token spend across all nodes in this run.
     # Uses operator.add so each node returns a partial count and LangGraph
     # appends rather than overwrites — same pattern as ``messages``.
@@ -66,6 +67,7 @@ def new_agent_state(
     namespace: Optional[str] = None,
     run_id: str = "",
     patch_store: Optional[Any] = None,
+    source_code: str = "",
 ) -> AgentState:
     """Build a fully-initialized ``AgentState`` with safe defaults.
 
@@ -97,6 +99,7 @@ def new_agent_state(
         deployment_pid=None,
         deployment_reason="",
         deployment_stderr="",
+        source_code=source_code,
     )
 
 
@@ -165,6 +168,7 @@ class TelemetryIngestPayload(BaseModel):
     logs: List[str] = Field(default_factory=list, description="Optional list of log lines or messages")
     reproduction_command: str = Field(default="", description="The command to reproduce the crash (from daemon --watch)")
     target_file: str = Field(default="", description="The file that crashed (extracted from traceback)")
+    source_code: str = Field(default="", description="The contents of the crashed file from the daemon")
 
 
 # ───────────────────────── Patch Delivery (Phase 0) ──────────────────────────

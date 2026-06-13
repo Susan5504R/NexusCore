@@ -45,13 +45,20 @@ if __name__ == "__main__":
         return {"messages": [{"role": "system", "content": f"Retrieved Context from Codebase:\n{mock_context}"}]}
 
     try:
+        context_blocks = []
+        source_code = state.get("source_code")
+        if source_code:
+            context_blocks.append(f"--- File: {state.get('current_target_file', 'unknown')} (From Daemon) ---\n{source_code}")
+
         vectorstore = get_vectorstore_service()
         # Fetch top relevant chunks
         docs = await vectorstore.asearch(query, top_k=3, namespace=state.get("namespace"))
         
-        context_blocks = []
         for doc in docs:
             path = doc.metadata.get("path", "Unknown")
+            # Don't duplicate if we already have the exact file from the daemon
+            if state.get("current_target_file") and path.endswith(state.get("current_target_file")):
+                continue
             context_blocks.append(f"--- File: {path} ---\n{doc.page_content}")
             
         assembled_context = "\n\n".join(context_blocks)
@@ -104,4 +111,10 @@ if __name__ == "__main__":
                 logger.error(f"Fallback dummy vector query failed: {fallback_err}")
                 
         logger.error(f"Fallback extraction failed.")
+        
+        # At the very least, if we have source code, return that!
+        if context_blocks:
+            assembled = "\n\n".join(context_blocks)
+            return {"messages": [{"role": "system", "content": f"Retrieved Context from Codebase:\n{assembled}"}]}
+            
         return {"messages": [{"role": "system", "content": f"Failed to retrieve context (embeddings exhausted, and fallback query failed): {e}"}]}

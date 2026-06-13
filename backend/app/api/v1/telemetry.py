@@ -78,6 +78,7 @@ async def ingest_telemetry(
                 project_path="",
                 reproduction_command=payload.reproduction_command,
                 namespace=namespace,
+                source_code=payload.source_code,
             )
             return {
                 "status": "anomaly_detected",
