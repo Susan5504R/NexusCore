@@ -206,7 +206,7 @@ def main():
 
             # 3. Send Telemetry
             headers = {"Authorization": f"Bearer {args.api_key}"}
-            res = requests.post(f"{args.server_url}/api/v1/telemetry/ingest", json=payload, headers=headers, timeout=5)
+            res = requests.post(f"{args.server_url}/api/v1/telemetry/ingest", json=payload, headers=headers, timeout=30)
             if res.ok:
                 data = res.json()
                 if data.get("status") == "anomaly_detected":
@@ -219,7 +219,7 @@ def main():
 
             # 4. Poll for Patches
             if args.project_dir:
-                poll_res = requests.get(f"{args.server_url}/api/v1/deployments/pending", headers=headers, timeout=5)
+                poll_res = requests.get(f"{args.server_url}/api/v1/deployments/pending", headers=headers, timeout=30)
                 if poll_res.ok:
                     patches = poll_res.json().get("patches", [])
                     for patch in patches:
@@ -255,7 +255,7 @@ def main():
                                         circuit_breaker.reset()
 
                         ack_payload = {"patch_id": patch["patch_id"], "status": status, "stderr": stderr_msg}
-                        ack_res = requests.post(f"{args.server_url}/api/v1/deployments/ack", json=ack_payload, headers=headers, timeout=5)
+                        ack_res = requests.post(f"{args.server_url}/api/v1/deployments/ack", json=ack_payload, headers=headers, timeout=30)
                         if ack_res.ok:
                             print(f"📡 Acknowledged patch {patch['patch_id']} as {status}")
                 

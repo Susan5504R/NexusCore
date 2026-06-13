@@ -64,7 +64,7 @@ class PatchStore:
                         """
                         UPDATE pending_deployments 
                         SET status = 'picked_up'
-                        WHERE namespace = $1 AND status = 'pending'
+                        WHERE namespace IS NOT DISTINCT FROM $1 AND status = 'pending'
                         RETURNING patch_id, run_id, target_file, patch_code, reproduction_command, created_at, status
                         """,
                         namespace
