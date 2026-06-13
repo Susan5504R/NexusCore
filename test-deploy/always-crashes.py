@@ -1,15 +1,11 @@
-# always-crashes.py
+import time
 
-import os
-import sys
+print("Starting background worker...")
+time.sleep(2)
 
-def main():
-    """
-    This script was previously failing due to an invalid hardcoded path 
-    being passed to the interpreter. This version is self-contained and 
-    executes successfully regardless of the path used to invoke it.
-    """
-    print("Script executed successfully.")
+def process_data():
+    # Fixed: converted the string to an integer to perform addition
+    result = 5 + int("10")
+    print(result)
 
-if __name__ == "__main__":
-    main()
+process_data()
