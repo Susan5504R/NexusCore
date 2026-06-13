@@ -58,6 +58,8 @@ async def stream_graph(request: Request, payload: GraphRunRequest):
         project_path=payload.project_path,
         reproduction_command=payload.reproduction_command,
         namespace=payload.namespace,
+        run_id=run_id,
+        patch_store=getattr(request.app.state, "patch_store", None)
     )
     
     async def event_generator():
@@ -101,6 +103,10 @@ async def stream_graph(request: Request, payload: GraphRunRequest):
                     "proposed_patch": final_state.get("proposed_patch", ""),
                     "token_consumption": final_state.get("token_consumption", 0),
                     "latency_ms": elapsed_ms,
+                    "deployment_status": final_state.get("deployment_status"),
+                    "deployment_pid": final_state.get("deployment_pid"),
+                    "deployment_reason": final_state.get("deployment_reason"),
+                    "deployment_stderr": final_state.get("deployment_stderr"),
                 }
             )
             yield {"event": "complete", "data": complete_event.model_dump_json()}

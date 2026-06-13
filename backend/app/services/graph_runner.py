@@ -24,11 +24,22 @@ async def record_ledger_entry(app, target_file: str, final_state: AgentState, el
     status = "success" if exit_code == 0 else "failed"
     if not clearance:
         status = "blocked_security"
+    elif exit_code == 0:
+        deploy_status = final_state.get("deployment_status")
+        if deploy_status and deploy_status not in ("skipped", "disabled", "pending"):
+            status = deploy_status
         
     patch = final_state.get("proposed_patch", "")
     payload_str = f"Target: {target_file} | Retries: {retry_count}"
     if patch:
         payload_str += f"\n\n--- Proposed Patch ---\n{patch}"
+        
+    deploy_reason = final_state.get("deployment_reason")
+    deploy_stderr = final_state.get("deployment_stderr")
+    if deploy_reason:
+        payload_str += f"\n\n--- Deployment Reason ---\n{deploy_reason}"
+    if deploy_stderr:
+        payload_str += f"\n\n--- Deployment Stderr ---\n{deploy_stderr}"
 
     entry = OperationalLogEntry(
         event_source=event_source,
@@ -68,6 +79,8 @@ async def execute_repair(
         project_path=project_path,
         reproduction_command=reproduction_command,
         namespace=namespace,
+        run_id=run_id,
+        patch_store=getattr(app.state, "patch_store", None)
     )
     try:
         final_state = await sre_orchestrator.ainvoke(initial_state)

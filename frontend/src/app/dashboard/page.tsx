@@ -175,7 +175,7 @@ export default function Dashboard() {
           {/* Left Column */}
           <div className="lg:col-span-1 space-y-6">
             <IngestPanel />
-            <NodeStatusPanel activeNode={activeNode} />
+            <NodeStatusPanel activeNode={activeNode} deploymentStatus={finalState?.deployment_status} />
             <StatusBanner status={status} />
           </div>
 

@@ -33,6 +33,16 @@ export function useGraphStream() {
             if (event.state.execution_exit_code === 0) {
                setStatus("success");
                setLogs(prev => [...prev, "[SYSTEM] Fix verified! Exit Code: 0", `[PATCH]\n${event.state?.proposed_patch}`]);
+               
+               if (event.state.deployment_status) {
+                 if (event.state.deployment_status === "success") {
+                    setLogs(prev => [...prev, `[DEPLOYMENT] Project successfully restarted. PID: ${event.state?.deployment_pid}`]);
+                 } else if (event.state.deployment_status === "pending_daemon") {
+                    setLogs(prev => [...prev, `[DEPLOYMENT] Patch queued for local daemon pickup.`]);
+                 } else if (event.state.deployment_status !== "skipped" && event.state.deployment_status !== "disabled") {
+                    setLogs(prev => [...prev, `[DEPLOYMENT] Restart failed: ${event.state?.deployment_reason}`]);
+                 }
+               }
             } else {
                setStatus("failed");
                setLogs(prev => [...prev, `[SYSTEM] Run failed. Exit Code: ${event.state?.execution_exit_code}`]);

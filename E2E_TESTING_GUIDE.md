@@ -123,6 +123,43 @@ npm run dev
 
 ---
 
+## 🔄 Phase 3: Autonomous Handoff and Restart (The Self-Healing Loop)
+
+To verify the complete end-to-end "Self-Healing Loop", you need to test the local daemon handoff. In this scenario, NexusCore (the backend) acts as the cloud orchestrator and pushes a successfully verified code fix to a local user's machine running `nexus_daemon.py`.
+
+### 1. Configure the Cloud Database
+Ensure you have `DEPLOYMENT_MODE=cloud` in your `backend/.env`. 
+You will also need a valid Postgres database URL configured in `.env` under `SUPABASE_DB_URL=`. This is required so the backend can securely enqueue the code patch for the daemon to download.
+
+### 2. Start the Backend and Dashboard
+Start both the backend server (`uvicorn`) and frontend server (`npm run dev`) as described in Testing Method 2. 
+Open the Dashboard, and use the Onboarding tab to **Generate an API key** (`nx_core_...`) and verify it.
+
+### 3. Start the Local Daemon
+In a **new** PowerShell window, start the daemon script. Point it to a test directory (or the NexusCore project itself) using your newly generated API key:
+```powershell
+# Install daemon dependencies if you haven't
+pip install psutil requests
+
+# Run the daemon (pointing server-url to your local backend for testing)
+python frontend/public/nexus_daemon.py `
+  --api-key nx_core_YOUR_KEY_HERE `
+  --server-url http://localhost:8000 `
+  --project-dir "C:\path\to\your\test\project"
+```
+
+### 4. Trigger the Healing Cycle
+1. Go to your Dashboard and trigger a manual repair or click **Simulate Spike**.
+2. Watch the dashboard's **Node Status** panel. The final "Deployment" step should turn **Yellow (Awaiting Daemon...)**, indicating the backend finished its job and is waiting for the local machine.
+3. Check the **Operational Ledger** at the bottom of the dashboard. The status badge will show a yellow **Daemon Pending** state.
+4. Now, look at your Daemon's PowerShell terminal. Within 5 seconds, the daemon will wake up and you should see logs stating:
+   - `[Daemon] Applied patch to...`
+   - `[Daemon] Restarting process...`
+   - `[Daemon] Process verified healthy.`
+5. The daemon has successfully patched and restarted the broken process without any human intervention. The loop is closed!
+
+---
+
 ## 🧪 Automated Testing (Optional)
 
 If you don't want to click around the UI and just want to mathematically prove the code works, you can run the automated test suite!

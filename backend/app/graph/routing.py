@@ -14,7 +14,7 @@ def route_security(state: AgentState) -> Literal["sandbox_node", "__end__"]:
         return "sandbox_node"
     return "__end__"
 
-def route_execution(state: AgentState) -> Literal["modification_node", "__end__"]:
+def route_execution(state: AgentState) -> Literal["modification_node", "deployment_node", "__end__"]:
     """
     Determines the next edge in the LangGraph based on execution status.
     Returns the string name of the next node to execute.
@@ -29,8 +29,8 @@ def route_execution(state: AgentState) -> Literal["modification_node", "__end__"
     # 2. Success Check
     exit_code = state.get("execution_exit_code", -1)
     if exit_code == 0:
-        logger.info("✅ Execution successful! Patch works. Exiting graph.")
-        return "__end__"
+        logger.info("✅ Execution successful! Routing to deployment node for restart.")
+        return "deployment_node"
         
     # 3. Retry Limit Check
     max_retries = get_settings().max_retries

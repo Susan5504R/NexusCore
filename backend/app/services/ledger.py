@@ -77,6 +77,19 @@ CREATE TABLE IF NOT EXISTS api_keys (
 );
 """
 
+_CREATE_PENDING_DEPLOYMENTS_TABLE = """
+CREATE TABLE IF NOT EXISTS pending_deployments (
+    patch_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    namespace VARCHAR(255) NOT NULL,
+    run_id VARCHAR(255) NOT NULL,
+    target_file VARCHAR(1024) NOT NULL,
+    patch_code TEXT NOT NULL,
+    reproduction_command VARCHAR(1024),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    status VARCHAR(50) DEFAULT 'pending'
+);
+"""
+
 _INSERT = """
 INSERT INTO operational_logs
     (event_source, agent_action, execution_payload, execution_status,
@@ -117,6 +130,7 @@ class Ledger:
         async with self._pool.acquire() as conn:
             await conn.execute(_CREATE_TABLE)
             await conn.execute(_CREATE_API_KEYS_TABLE)
+            await conn.execute(_CREATE_PENDING_DEPLOYMENTS_TABLE)
         logger.info("ledger schema ensured")
 
     async def log_event(self, entry: OperationalLogEntry) -> None:

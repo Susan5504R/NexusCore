@@ -14,12 +14,26 @@ function statusBadge(status?: string | null): string {
   switch (status) {
     case "success":
       return "bg-success/15 text-success border-success/30";
+    case "pending_daemon":
+      return "bg-yellow-500/15 text-yellow-500 border-yellow-500/30";
     case "blocked_security":
-      return "bg-error/15 text-error border-error/30";
+    case "unhealthy":
+    case "circuit_breaker_open":
+    case "error":
     case "failed":
       return "bg-error/15 text-error border-error/30";
     default:
       return "bg-text-muted/10 text-text-muted border-text-muted/20";
+  }
+}
+
+function statusLabel(status?: string | null): string {
+  switch (status) {
+    case "pending_daemon": return "daemon pending";
+    case "circuit_breaker_open": return "circuit breaker";
+    case "blocked_security": return "blocked";
+    case "unhealthy": return "restart crashed";
+    default: return status || "unknown";
   }
 }
 
@@ -118,7 +132,7 @@ export function LedgerHistory({ reloadKey }: LedgerHistoryProps) {
                     <td className="py-2 pr-4 text-text-main whitespace-nowrap">{e.agent_action ?? "--"}</td>
                     <td className="py-2 pr-4">
                       <span className={`inline-block rounded-full border px-2 py-0.5 text-xs ${statusBadge(e.execution_status)}`}>
-                        {e.execution_status ?? "unknown"}
+                        {statusLabel(e.execution_status)}
                       </span>
                     </td>
                     <td className="py-2 pr-4 text-right font-mono text-text-main/80">
@@ -129,7 +143,7 @@ export function LedgerHistory({ reloadKey }: LedgerHistoryProps) {
                       {e.execution_payload?.includes("--- Proposed Patch ---") ? (expandedIndex === i ? "Hide Code ▲" : "View Code ▼") : ""}
                     </td>
                   </tr>
-                  {expandedIndex === i && e.execution_payload && e.execution_payload.includes("--- Proposed Patch ---") && (
+                  {expandedIndex === i && e.execution_payload && e.execution_payload.includes("---") && (
                     <tr className="bg-background/50 border-b border-primary/20">
                       <td colSpan={6} className="p-4">
                         <div className="text-xs font-mono text-text-main/80 bg-black/40 p-4 rounded-lg overflow-x-auto whitespace-pre-wrap border border-primary/10">

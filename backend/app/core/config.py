@@ -120,6 +120,13 @@ class Settings(BaseSettings):
     # autonomously fire real graph runs (LLM + Docker). Opt in deliberately.
     enable_telemetry_loop: bool = False
 
+    # ── Post-Heal Restart (Phase 1.2) ─────────────────────────────────────
+    enable_post_heal_restart: bool = True
+    max_restart_attempts: int = 3
+    restart_health_check_delay: float = 5.0
+    restart_graceful_timeout: float = 10.0
+    cloud_restart_strategy: str = "process"
+
     # ── Server ────────────────────────────────────────────────────────────
     api_host: str = "0.0.0.0"
     api_port: int = 8000

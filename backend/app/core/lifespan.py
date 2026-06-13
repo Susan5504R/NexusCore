@@ -17,6 +17,7 @@ from pinecone import Pinecone
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.services.ledger import create_ledger
+from app.services.patch_store import create_patch_store
 from app.anomaly.telemetry import telemetry_loop
 from app.anomaly.log_counter import LogErrorCounter
 
@@ -40,6 +41,9 @@ async def lifespan(app: FastAPI):
 
     # ── Operational ledger (Supabase / Postgres) ───────────────────────────
     app.state.ledger = await create_ledger(settings.supabase_db_url)
+
+    # ── Patch Store (for daemon delivery) ──────────────────────────────────
+    app.state.patch_store = await create_patch_store(app.state.ledger)
 
     # ── Filled by later phases ──────────────────────────────────────────────
     # Phase 2.1 sets app.state.docker_client.

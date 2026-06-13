@@ -8,6 +8,10 @@ export interface GraphStreamStateDelta {
   latest_message?: string;
   token_consumption?: number;
   latency_ms?: number;
+  deployment_status?: string | null;
+  deployment_pid?: number | null;
+  deployment_reason?: string | null;
+  deployment_stderr?: string | null;
 }
 
 export interface GraphStreamEvent {

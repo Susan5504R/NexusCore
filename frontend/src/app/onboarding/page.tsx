@@ -272,9 +272,9 @@ export default function OnboardingPage() {
 
               <div className="space-y-4">
                 <h3 className="text-xl font-bold">3. Start Pushing Telemetry!</h3>
-                <p className="text-text-main/80 text-sm">Run the daemon with your newly generated API key. Use backticks (`) for multi-line commands in PowerShell:</p>
+                <p className="text-text-main/80 text-sm">Run the daemon with your newly generated API key. Provide your project directory to enable automatic patch delivery. Use backticks (`) for multi-line commands in PowerShell:</p>
                 <pre className="bg-gray-900 text-blue-300 p-4 rounded-md overflow-x-auto shadow-inner border border-gray-700">
-                  <code>python nexus_daemon.py `{'\n'}  --api-key nx_core_YOUR_KEY_HERE `{'\n'}  --server-url https://nexuscore-rdc1.onrender.com</code>
+                  <code>python nexus_daemon.py `{'\n'}  --api-key nx_core_YOUR_KEY_HERE `{'\n'}  --server-url https://nexuscore-rdc1.onrender.com `{'\n'}  --project-dir "C:\path\to\your\project"</code>
                 </pre>
               </div>
 
@@ -286,7 +286,7 @@ export default function OnboardingPage() {
                   and NexusCore autonomously searches your codebase to find and patch the bug!
                 </p>
                 <pre className="bg-gray-900 text-blue-300 p-4 rounded-md overflow-x-auto shadow-inner border border-gray-700">
-                  <code>python nexus_daemon.py `{'\n'}  --api-key nx_core_YOUR_KEY_HERE `{'\n'}  --server-url https://nexuscore-rdc1.onrender.com `{'\n'}  --watch "python path/to/your/script.py"</code>
+                  <code>python nexus_daemon.py `{'\n'}  --api-key nx_core_YOUR_KEY_HERE `{'\n'}  --server-url https://nexuscore-rdc1.onrender.com `{'\n'}  --project-dir "C:\path\to\your\project" `{'\n'}  --watch "python script.py"</code>
                 </pre>
               </div>
 

@@ -8,6 +8,7 @@ from app.graph.nodes.context_node import context_node
 from app.graph.nodes.modification_node import modification_node
 from app.graph.nodes.arbitration_node import arbitration_node
 from app.graph.nodes.sandbox_node import sandbox_node
+from app.graph.nodes.deployment_node import deployment_node
 from app.graph.routing import route_execution, route_security
 
 logger = logging.getLogger("nexuscore.orchestrator")
@@ -24,6 +25,7 @@ def create_sre_orchestrator() -> CompiledStateGraph:
     workflow.add_node("modification_node", modification_node)
     workflow.add_node("arbitration_node", arbitration_node)
     workflow.add_node("sandbox_node", sandbox_node)
+    workflow.add_node("deployment_node", deployment_node)
     
     # 2. Set Entry Point
     workflow.set_entry_point("evaluation_node")
@@ -48,9 +50,12 @@ def create_sre_orchestrator() -> CompiledStateGraph:
         route_execution,
         {
             "modification_node": "modification_node",
+            "deployment_node": "deployment_node",
             "__end__": END
         }
     )
+    
+    workflow.add_edge("deployment_node", END)
     
     # 5. Compile into a runnable application
     app = workflow.compile()

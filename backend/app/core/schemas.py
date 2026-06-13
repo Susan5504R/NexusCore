@@ -13,6 +13,7 @@ HTTP contracts, and the database records never drift apart.
 """
 
 import operator
+from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 from typing_extensions import Annotated, TypedDict
@@ -42,11 +43,17 @@ class AgentState(TypedDict):
     security_clearance: bool
     retry_count: int
     namespace: Optional[str]
+    run_id: str
     telemetry_metrics: Dict[str, Any]
     # Accumulated LLM token spend across all nodes in this run.
     # Uses operator.add so each node returns a partial count and LangGraph
     # appends rather than overwrites — same pattern as ``messages``.
     token_consumption: Annotated[int, operator.add]
+    patch_store: Optional[Any]
+    deployment_status: str
+    deployment_pid: Optional[int]
+    deployment_reason: str
+    deployment_stderr: str
 
 
 def new_agent_state(
@@ -57,6 +64,8 @@ def new_agent_state(
     project_path: str = "",
     reproduction_command: str = "",
     namespace: Optional[str] = None,
+    run_id: str = "",
+    patch_store: Optional[Any] = None,
 ) -> AgentState:
     """Build a fully-initialized ``AgentState`` with safe defaults.
 
@@ -80,8 +89,14 @@ def new_agent_state(
         security_clearance=False,
         retry_count=0,
         namespace=namespace,
+        run_id=run_id,
         telemetry_metrics={},
         token_consumption=0,
+        patch_store=patch_store,
+        deployment_status="pending",
+        deployment_pid=None,
+        deployment_reason="",
+        deployment_stderr="",
     )
 
 
@@ -150,6 +165,25 @@ class TelemetryIngestPayload(BaseModel):
     logs: List[str] = Field(default_factory=list, description="Optional list of log lines or messages")
 
 
+# ───────────────────────── Patch Delivery (Phase 0) ──────────────────────────
+class PendingPatch(BaseModel):
+    patch_id: str
+    run_id: str
+    target_file: str          # relative path within project
+    patch_code: str           # full file contents
+    reproduction_command: str  # how to restart
+    created_at: datetime
+    status: str               # "pending" | "picked_up" | "applied" | "restarted" | "failed"
+
+class PendingDeploymentsResponse(BaseModel):
+    patches: List[PendingPatch]
+
+class AckPayload(BaseModel):
+    patch_id: str
+    status: str
+    stderr: str = ""
+
+
 # ───────────────────────────── API: graph run stream ─────────────────────────
 class GraphStreamEvent(BaseModel):
     event: str = Field(..., description="'node_update', 'complete', or 'error'")
@@ -168,6 +202,10 @@ class GraphStreamEvent(BaseModel):
             "proposed_patch",
             "original_code",
             "token_consumption",
+            "deployment_status",
+            "deployment_pid",
+            "deployment_reason",
+            "deployment_stderr",
         ]:
             if key in delta:
                 state_payload[key] = delta[key]
