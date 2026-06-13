@@ -64,15 +64,19 @@ async def ingest_telemetry(
         try:
             from app.services.graph_runner import execute_repair
             run_id = "telemetry_" + str(uuid.uuid4())
+            
+            # Use target_file from daemon if provided, else AUTO_DETECT
+            target = payload.target_file or "AUTO_DETECT"
+            
             background_tasks.add_task(
                 execute_repair,
                 app=request.app,
-                target_file="AUTO_DETECT",
+                target_file=target,
                 logs=payload.logs,
                 run_id=run_id,
                 event_source="daemon/telemetry",
                 project_path="",
-                reproduction_command="",
+                reproduction_command=payload.reproduction_command,
                 namespace=namespace,
             )
             return {

@@ -274,10 +274,18 @@ async def execute_in_sandbox(
     """
     Async wrapper for sandbox execution.
     Dispatches to either Docker or subprocess based on SANDBOX_MODE setting.
+    Cloud environments automatically fall back to subprocess since Docker-in-Docker
+    is not available on platforms like Render/Heroku.
     Returns (exit_code, stdout, stderr).
     """
     settings = get_settings()
     mode = settings.sandbox_mode
+
+    # Cloud platforms (Render, Heroku, etc.) don't support Docker-in-Docker.
+    # Auto-fallback to subprocess to prevent silent sandbox failures.
+    if settings.is_cloud and mode == "docker":
+        logger.info("Cloud environment detected — auto-falling back to subprocess sandbox.")
+        mode = "subprocess"
 
     if mode == "docker":
         logger.info("Dispatching code to Docker sandbox...")
@@ -291,3 +299,4 @@ async def execute_in_sandbox(
             _run_subprocess_sandbox, code, project_path,
             reproduction_command, target_file
         )
+

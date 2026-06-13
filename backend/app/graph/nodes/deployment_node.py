@@ -16,9 +16,61 @@ async def deployment_node(state: AgentState) -> dict:
     """
     logger.info("--- DEPLOYMENT NODE (POST-HEAL RESTART) ---")
     
+    settings = get_settings()
     project_path = state.get("project_path", "")
     repro_cmd = state.get("reproduction_command", "")
     
+    if not settings.enable_post_heal_restart:
+        return {
+            "deployment_status": "disabled",
+            "deployment_reason": "Post-heal restart is disabled in config"
+        }
+    
+    # ── Cloud/SaaS mode: enqueue patch for daemon pickup ──────────────────
+    # In cloud mode, the backend has no local process to restart.
+    # The patch must be enqueued in PatchStore so the remote daemon can poll it.
+    if settings.is_cloud:
+        patch_store = state.get("patch_store")
+        namespace = state.get("namespace") or ""
+        target_file = state.get("current_target_file", "")
+        patch_code = state.get("proposed_patch", "")
+        run_id = state.get("run_id", "")
+        
+        if not patch_store:
+            logger.warning("No patch_store available — cannot enqueue for daemon.")
+            return {
+                "deployment_status": "skipped",
+                "deployment_reason": "PatchStore not initialized"
+            }
+        
+        if not patch_code:
+            logger.warning("No proposed_patch to deploy.")
+            return {
+                "deployment_status": "skipped",
+                "deployment_reason": "No patch code to deploy"
+            }
+        
+        try:
+            patch_id = await patch_store.enqueue(
+                namespace=namespace,
+                run_id=run_id,
+                target_file=target_file,
+                patch_code=patch_code,
+                reproduction_command=repro_cmd,
+            )
+            logger.info(f"✅ Patch {patch_id} enqueued for daemon pickup (namespace={namespace})")
+            return {
+                "deployment_status": "pending_daemon",
+                "deployment_reason": f"Patch {patch_id} queued for daemon pickup"
+            }
+        except Exception as e:
+            logger.error(f"Failed to enqueue patch: {e}", exc_info=True)
+            return {
+                "deployment_status": "error",
+                "deployment_reason": f"Failed to enqueue patch: {e}"
+            }
+    
+    # ── Local mode: direct process restart ────────────────────────────────
     if not project_path or not repro_cmd:
         logger.warning("No project_path or reproduction_command — skipping restart.")
         return {
@@ -26,14 +78,6 @@ async def deployment_node(state: AgentState) -> dict:
             "deployment_reason": "Missing project_path or command"
         }
     
-    settings = get_settings()
-    if not settings.enable_post_heal_restart:
-        return {
-            "deployment_status": "disabled",
-            "deployment_reason": "Post-heal restart is disabled in config"
-        }
-        
-    # --- Circuit Breaker & Dispatch ---
     circuit_breaker = RestartCircuitBreaker.get_instance()
     if not circuit_breaker.can_restart(project_path):
         logger.critical(f"🔴 Circuit breaker OPEN for {project_path}. Too many restart failures.")
@@ -80,3 +124,4 @@ async def deployment_node(state: AgentState) -> dict:
             "deployment_status": "error",
             "deployment_reason": str(e)
         }
+

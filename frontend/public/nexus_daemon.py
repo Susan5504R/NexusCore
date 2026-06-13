@@ -187,11 +187,21 @@ def main():
                 ]
                 anomaly_sent = True
 
+            # Extract target file from crash traceback if available
+            crashed_file = ""
+            if logs_to_send:
+                import re
+                file_matches = re.findall(r'File "([^"]+)"', "\n".join(logs_to_send))
+                if file_matches:
+                    crashed_file = os.path.basename(file_matches[-1])
+
             payload = {
                 "cpu": 98.5 if logs_to_send else cpu,
                 "mem": 94.2 if logs_to_send else mem,
                 "error_rate": 1.0 if logs_to_send else 0.0,
                 "logs": logs_to_send,
+                "reproduction_command": (args.watch or "") if logs_to_send else "",
+                "target_file": crashed_file,
             }
 
             # 3. Send Telemetry

@@ -163,6 +163,8 @@ class TelemetryIngestPayload(BaseModel):
     mem: float = Field(..., description="Memory usage percent (0-100)")
     error_rate: float = Field(..., description="Error rate fraction (0-1)")
     logs: List[str] = Field(default_factory=list, description="Optional list of log lines or messages")
+    reproduction_command: str = Field(default="", description="The command to reproduce the crash (from daemon --watch)")
+    target_file: str = Field(default="", description="The file that crashed (extracted from traceback)")
 
 
 # ───────────────────────── Patch Delivery (Phase 0) ──────────────────────────

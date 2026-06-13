@@ -32,48 +32,8 @@ async def sandbox_node(state: AgentState) -> dict:
     if stderr:
         logger.warning(f"Sandbox Stderr: {stderr.strip()}")
         
-    # Phase 5.4: Deploy the verified fix back to the actual project
-    if exit_code == 0:
-        from app.core.config import get_settings
-        settings = get_settings()
-        
-        project_path = state.get("project_path", "")
-        target_file = state.get("current_target_file", "")
-        reproduction_command = state.get("reproduction_command", "")
-        
-        if settings.is_cloud:
-            patch_store = state.get("patch_store")
-            if patch_store and target_file:
-                await patch_store.enqueue(
-                    namespace=state.get("namespace", "") or "",
-                    run_id=state.get("run_id", ""),
-                    target_file=target_file,
-                    patch_code=patch_code,
-                    reproduction_command=reproduction_command
-                )
-                logger.info(f"Fix verified! Patch enqueued to PatchStore for daemon pickup.")
-        else:
-            if project_path and target_file:
-                import os
-                rel_target = os.path.relpath(target_file, project_path) if os.path.isabs(target_file) else target_file
-                original_target = os.path.join(project_path, rel_target)
-                
-                # If the direct path doesn't exist, search the project tree
-                if not os.path.exists(original_target):
-                    basename = os.path.basename(rel_target)
-                    for root, _dirs, files in os.walk(project_path):
-                        if basename in files:
-                            original_target = os.path.join(root, basename)
-                            logger.info(f"Resolved deploy target to: {original_target}")
-                            break
-                
-                try:
-                    os.makedirs(os.path.dirname(original_target), exist_ok=True)
-                    with open(original_target, 'w', encoding='utf-8') as f:
-                        f.write(patch_code)
-                    logger.info(f"Fix verified! Patch successfully deployed to {original_target}")
-                except Exception as e:
-                    logger.error(f"Failed to deploy verified patch: {e}")
+    # Patch deployment is handled by the deployment_node downstream.
+    # sandbox_node only verifies — it does not deploy.
                 
     current_retries = state.get("retry_count", 0)
     
