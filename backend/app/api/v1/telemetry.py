@@ -73,6 +73,7 @@ async def ingest_telemetry(
                 event_source="daemon/telemetry",
                 project_path="",
                 reproduction_command="",
+                namespace=namespace,
             )
             return {
                 "status": "anomaly_detected",
