@@ -30,7 +30,7 @@ class PatchStore:
                         """
                         INSERT INTO pending_deployments 
                         (patch_id, namespace, run_id, target_file, patch_code, reproduction_command, status)
-                        VALUES ($1, $2, $3, $4, $5, $6, 'pending')
+                        VALUES ($1::uuid, $2, $3, $4, $5, $6, 'pending')
                         """,
                         patch_id, namespace, run_id, target_file, patch_code, reproduction_command
                     )
@@ -104,7 +104,7 @@ class PatchStore:
                         """
                         UPDATE pending_deployments
                         SET status = $1
-                        WHERE patch_id = $2
+                        WHERE patch_id = $2::uuid
                         """,
                         status, patch_id
                     )

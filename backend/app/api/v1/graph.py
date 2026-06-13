@@ -14,7 +14,9 @@ router = APIRouter()
 
 @router.post("/run", response_model=GraphRunResponse, dependencies=[Depends(verify_api_key)])
 @limiter.limit("5/minute")
-async def run_graph(request: Request, payload: GraphRunRequest):
+async def run_graph(request: Request, payload: GraphRunRequest, auth_context=Depends(verify_api_key)):
+    if auth_context.namespace:
+        payload.namespace = auth_context.namespace
     """
     Triggers a full execution of the autonomous SRE repair LangGraph.
     """
@@ -45,7 +47,9 @@ async def run_graph(request: Request, payload: GraphRunRequest):
 
 @router.post("/run/stream", dependencies=[Depends(verify_api_key)])
 @limiter.limit("5/minute")
-async def stream_graph(request: Request, payload: GraphRunRequest):
+async def stream_graph(request: Request, payload: GraphRunRequest, auth_context=Depends(verify_api_key)):
+    if auth_context.namespace:
+        payload.namespace = auth_context.namespace
     """
     Triggers the autonomous SRE LangGraph and yields an SSE stream of node updates.
     """
