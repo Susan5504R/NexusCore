@@ -28,8 +28,9 @@ class DaemonCircuitBreaker:
         self.failure_timestamps.clear()
 
 class ProcessSupervisor:
-    def __init__(self, command: str):
+    def __init__(self, command: str, cwd: str = None):
         self.command = command
+        self.cwd = cwd
         self.process = None
         self.stderr_lines = deque(maxlen=100)
         self._stop_event = threading.Event()
@@ -46,7 +47,8 @@ class ProcessSupervisor:
             shell=True,
             stdout=subprocess.DEVNULL, # Focus on errors for anomalies
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
+            cwd=self.cwd
         )
         
         def _read_stderr():
@@ -151,7 +153,7 @@ def main():
     circuit_breaker = DaemonCircuitBreaker()
     
     if args.watch:
-        supervisor = ProcessSupervisor(args.watch)
+        supervisor = ProcessSupervisor(args.watch, cwd=args.project_dir)
         supervisor.start()
 
     print("Press Ctrl+C to stop.\n")
